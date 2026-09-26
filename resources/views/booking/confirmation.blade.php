@@ -4,11 +4,17 @@
 @php $pending = $shipment->status->value === 'pending_payment'; @endphp
 <div class="mx-auto max-w-2xl">
     @include('booking._steps', ['current' => $pending ? 3 : 4])
-    <div class="card card-body text-center">
-        <span class="mx-auto grid size-16 place-items-center rounded-full {{ $pending ? 'bg-warning-50 text-warning-800' : 'bg-success-50 text-success-700' }}"><x-icon :name="$pending ? 'clock' : 'check-circle'" class="size-8" /></span>
+    <div class="card card-body text-center" @unless($pending) x-data x-init="setTimeout(() => window.confettiBurst($refs.badge), 350)" @endunless>
+        @if($pending)
+            <span class="mx-auto grid size-16 place-items-center rounded-full bg-warning-50 text-warning-800"><x-icon name="clock" class="size-8" /></span>
+        @else
+            <span x-ref="badge" class="splash-logo-tile mx-auto grid size-20 place-items-center rounded-full bg-gradient-to-br from-success-600 to-success-700 text-white shadow-lg ring-8 ring-success-50">
+                <svg class="splash-logo size-10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path pathLength="100" d="M20 6 9 17l-5-5"/></svg>
+            </span>
+        @endif
         <h1 class="mt-4 text-2xl">{{ $pending ? 'Awaiting payment' : 'Your shipment is booked' }}</h1>
         <p class="mt-2 text-ink-600">Keep this tracking number — we've also emailed it to {{ $shipment->sender_email ?? 'you' }}.</p>
-        <p class="mx-auto mt-5 w-fit rounded-xl border-2 border-dashed border-brand-300 bg-brand-50 px-6 py-3 font-mono text-2xl font-bold tracking-wider text-brand-800">{{ $shipment->tracking_number }}</p>
+        <p class="mx-auto mt-5 w-fit animate-float rounded-xl border-2 border-dashed border-brand-300 bg-brand-50 px-6 py-3 font-mono text-2xl font-bold tracking-wider text-brand-800">{{ $shipment->tracking_number }}</p>
         <div class="mt-4"><x-status-badge :status="$shipment->status" /></div>
         <div class="mt-6 flex flex-wrap justify-center gap-3">
             <a href="{{ route('track.show', $shipment->tracking_number) }}" class="btn btn-primary">Track shipment</a>

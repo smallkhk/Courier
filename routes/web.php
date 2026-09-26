@@ -13,6 +13,7 @@ use App\Http\Controllers\PublicController;
 use App\Http\Controllers\Rider;
 use App\Http\Controllers\SupportController;
 use App\Http\Controllers\TrackingController;
+use App\Support\Settings;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -31,6 +32,26 @@ Route::get('/faq', [PublicController::class, 'faq'])->name('faq');
 Route::get('/legal/{page}', [PublicController::class, 'legal'])->whereIn('page', ['terms', 'privacy', 'delivery-policy'])->name('legal');
 Route::get('/for-business', [PublicController::class, 'business'])->name('business.landing');
 Route::get('/health', HealthController::class)->name('health');
+Route::get('/manifest.webmanifest', function () {
+    $name = Settings::get('business_name');
+
+    return response()->json([
+        'name' => $name,
+        'short_name' => mb_substr($name, 0, 12),
+        'description' => 'Book, pay for and track parcel deliveries.',
+        'start_url' => '/portal',
+        'scope' => '/',
+        'display' => 'standalone',
+        'background_color' => '#081640',
+        'theme_color' => '#0f2f8f',
+        'icons' => [
+            ['src' => '/icons/icon-192.png', 'sizes' => '192x192', 'type' => 'image/png'],
+            ['src' => '/icons/icon-512.png', 'sizes' => '512x512', 'type' => 'image/png'],
+            ['src' => '/icons/maskable-512.png', 'sizes' => '512x512', 'type' => 'image/png', 'purpose' => 'maskable'],
+        ],
+        'shortcuts' => [['name' => 'Track a parcel', 'url' => '/track'], ['name' => 'Send a parcel', 'url' => '/send']],
+    ])->header('Content-Type', 'application/manifest+json');
+})->name('manifest');
 
 Route::get('/contact', [SupportController::class, 'contact'])->name('support.contact');
 Route::post('/contact', [SupportController::class, 'submit'])->middleware('throttle:contact')->name('support.contact.submit');

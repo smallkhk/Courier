@@ -13,10 +13,13 @@
     <meta name="robots" content="noindex">
     <title>@yield('title', $portalNames[$portal]) · {{ $brand }}</title>
     <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="/icons/icon-192.png">
+    <link rel="manifest" href="/manifest.webmanifest">
     <x-reveal-boot />
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="min-h-full" x-data="{ nav: false }">
+<x-splash />
 <a href="#main" class="skip-link">Skip to content</a>
 @if(config('courier.payments.provider') === 'sandbox' && ! app()->environment('production'))
     <div class="bg-accent-300 px-4 py-1 text-center text-xs font-semibold text-ink-900" role="note">DEVELOPMENT MODE — sandbox payments, notifications logged only.</div>
@@ -26,7 +29,7 @@
            :class="nav && 'translate-x-0'" aria-label="{{ $portalNames[$portal] }} navigation">
         <div class="flex h-16 items-center justify-between border-b border-ink-200 px-4">
             <a href="{{ route('home') }}" class="flex items-center gap-2 font-bold text-ink-900 no-underline">
-                <span class="grid size-8 place-items-center rounded-lg bg-brand-600 text-white"><x-icon name="package" class="size-4" /></span>{{ $brand }}
+                <x-logo-mark size="size-8" />{{ $brand }}
             </a>
             <button class="btn btn-ghost btn-sm lg:hidden" @click="nav=false" aria-label="Close menu"><x-icon name="x" /></button>
         </div>

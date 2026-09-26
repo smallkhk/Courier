@@ -48,6 +48,7 @@ return [
         'support_email' => env('SUPPORT_EMAIL', 'support@example.com'),
         'support_phone' => env('SUPPORT_PHONE', ''),
         'office_address' => '',
+        'whatsapp_number' => env('WHATSAPP_NUMBER', ''),
         'tracking_prefix' => 'CX',
         'default_currency' => 'NGN',
         'currencies' => ['NGN'],

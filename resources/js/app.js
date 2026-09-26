@@ -368,5 +368,102 @@ Alpine.data('addressPicker', (addresses, prefix) => ({
     },
 }));
 
+
+/* ---------------------------------------------------------------
+ * Extra motion. Everything below checks prefers-reduced-motion.
+ * ------------------------------------------------------------- */
+const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* Branded progress bar while the next page loads. */
+(() => {
+    const bar = document.getElementById('nav-progress');
+    if (!bar) return;
+    const start = () => { bar.classList.remove('running'); void bar.offsetWidth; bar.classList.add('running'); };
+    document.addEventListener('click', (e) => {
+        const a = e.target.closest('a[href]');
+        if (!a || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+        if (a.target && a.target !== '_self') return;
+        if (a.hasAttribute('download') || a.origin !== location.origin) return;
+        if (a.pathname === location.pathname && a.hash) return;
+        if (/\.(csv|pdf|png|jpe?g|webp)$/i.test(a.pathname) || a.pathname.includes('/export') || a.pathname.startsWith('/files/')) return;
+        start();
+    });
+    document.addEventListener('submit', (e) => { if (!e.defaultPrevented && !e.target.dataset.noLock) start(); });
+    window.addEventListener('pageshow', () => bar.classList.remove('running'));
+})();
+
+/* Rotating headline words. */
+Alpine.data('rotatingWords', (words) => ({
+    words,
+    i: 0,
+    init() {
+        if (reduceMotion) return;
+        setInterval(() => { this.i = (this.i + 1) % this.words.length; }, 2600);
+    },
+}));
+
+/* Subtle mouse parallax for layered hero elements (desktop pointers only). */
+Alpine.data('parallax', () => ({
+    init() {
+        if (reduceMotion || !window.matchMedia('(pointer: fine)').matches) return;
+        const layers = [...this.$el.querySelectorAll('[data-depth]')];
+        let raf = null;
+        this.$el.addEventListener('mousemove', (e) => {
+            const r = this.$el.getBoundingClientRect();
+            const x = (e.clientX - r.left) / r.width - 0.5;
+            const y = (e.clientY - r.top) / r.height - 0.5;
+            cancelAnimationFrame(raf);
+            raf = requestAnimationFrame(() => layers.forEach((l) => {
+                const d = parseFloat(l.dataset.depth);
+                l.style.translate = `${-x * d}px ${-y * d}px`;
+            }));
+        });
+        this.$el.addEventListener('mouseleave', () => layers.forEach((l) => { l.style.translate = ''; }));
+    },
+}));
+
+/* Lightweight brand-coloured confetti burst (no library). */
+window.confettiBurst = (originEl) => {
+    if (reduceMotion) return;
+    const canvas = document.createElement('canvas');
+    canvas.setAttribute('aria-hidden', 'true');
+    Object.assign(canvas.style, { position: 'fixed', inset: '0', width: '100%', height: '100%', pointerEvents: 'none', zIndex: 80 });
+    document.body.appendChild(canvas);
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = innerWidth * dpr;
+    canvas.height = innerHeight * dpr;
+    const ctx = canvas.getContext('2d');
+    ctx.scale(dpr, dpr);
+    const r = originEl?.getBoundingClientRect();
+    const ox = r ? r.left + r.width / 2 : innerWidth / 2;
+    const oy = r ? r.top + r.height / 2 : innerHeight / 3;
+    const colors = ['#1447e6', '#5b81f4', '#f5b41e', '#fbcb5a', '#10b981', '#ffffff'];
+    const parts = Array.from({ length: 140 }, () => ({
+        x: ox, y: oy, vx: (Math.random() - 0.5) * 14, vy: Math.random() * -13 - 3,
+        s: Math.random() * 7 + 4, r: Math.random() * Math.PI, vr: (Math.random() - 0.5) * 0.3, c: colors[(Math.random() * colors.length) | 0],
+    }));
+    const t0 = performance.now();
+    const frame = (t) => {
+        ctx.clearRect(0, 0, innerWidth, innerHeight);
+        const alive = t - t0 < 2600;
+        parts.forEach((p) => {
+            p.vy += 0.35; p.vx *= 0.99; p.x += p.vx; p.y += p.vy; p.r += p.vr;
+            ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.r);
+            ctx.globalAlpha = Math.max(0, 1 - (t - t0) / 2600);
+            ctx.fillStyle = p.c; ctx.fillRect(-p.s / 2, -p.s / 4, p.s, p.s / 2);
+            ctx.restore();
+        });
+        alive ? requestAnimationFrame(frame) : canvas.remove();
+    };
+    requestAnimationFrame(frame);
+};
+
+/* Back-to-top button visibility. */
+Alpine.data('backToTop', () => ({
+    show: false,
+    init() { window.addEventListener('scroll', () => { this.show = window.scrollY > 900; }, { passive: true }); },
+    go() { window.scrollTo({ top: 0, behavior: reduceMotion ? 'auto' : 'smooth' }); },
+}));
+
 window.Alpine = Alpine;
 Alpine.start();

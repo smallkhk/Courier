@@ -2,8 +2,8 @@
 {{-- Chronological (newest first) event list. Internal notes render only when $internal is true. --}}
 <ol class="relative space-y-6 border-l-2 border-ink-200 pl-6" aria-label="Shipment timeline">
     @forelse($events->sortByDesc(fn ($e) => [$e->occurred_at, $e->id]) as $e)
-        <li class="relative">
-            <span class="absolute -left-[35px] grid size-7 place-items-center rounded-full border-2 border-white {{ $loop->first ? 'bg-brand-600 text-white' : 'bg-ink-200 text-ink-600' }}">
+        <li class="timeline-item relative" style="--i: {{ $loop->index }}">
+            <span class="absolute -left-[35px] grid size-7 place-items-center rounded-full border-2 border-white {{ $loop->first ? 'pulse-dot bg-brand-600 text-white' : 'bg-ink-200 text-ink-600' }}">
                 <x-icon :name="$e->status->icon()" class="size-3.5" />
             </span>
             <div class="flex flex-wrap items-center gap-2">

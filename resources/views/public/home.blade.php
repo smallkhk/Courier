@@ -19,21 +19,28 @@
     <div aria-hidden="true" class="pointer-events-none absolute -top-24 -right-24 -z-10 size-96 rounded-full bg-brand-500/30 blur-3xl"></div>
     <div aria-hidden="true" class="pointer-events-none absolute -bottom-32 left-1/3 -z-10 size-96 rounded-full bg-accent-400/20 blur-3xl"></div>
 
-    <div class="mx-auto grid max-w-7xl items-center gap-10 px-4 pt-12 pb-20 sm:px-6 lg:grid-cols-[1.15fr_1fr] lg:pt-20 lg:pb-28">
+    <div class="mx-auto grid max-w-7xl items-center gap-10 px-4 pt-12 pb-20 sm:px-6 lg:grid-cols-[1.15fr_1fr] lg:pt-20 lg:pb-28" x-data="parallax">
         <div class="hero-rise">
             <div><x-flash /></div>
             <p class="glass inline-flex w-fit items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold text-brand-50">
                 <span class="relative flex size-2"><span class="absolute inline-flex size-full animate-ping-slow rounded-full bg-accent-300"></span><span class="relative inline-flex size-2 rounded-full bg-accent-400"></span></span>
                 Same-day, express &amp; nationwide delivery
             </p>
-            <h1 class="mt-5 text-[length:var(--text-fluid-h1)] leading-[1.05] font-extrabold tracking-tight text-white">
-                Fast, safe parcel delivery —<br class="hidden sm:block"> <span class="text-gradient">tracked every step.</span>
+            <h1 class="mt-5 text-[length:var(--text-fluid-h1)] leading-[1.05] font-extrabold tracking-tight text-white" x-data="rotatingWords(['across town', 'across the country', 'for your business', 'right to the door'])">
+                Parcel delivery<br>
+                <span class="sr-only">across town, across the country, for your business, right to the door</span>
+                <span aria-hidden="true" class="relative inline-block min-h-[1.1em] text-white">
+                    <template x-for="(w, n) in words" :key="n"><span x-show="i === n" class="word-in relative">
+                        <span x-text="w"></span><span class="word-underline"></span></span></template>
+                    <noscript>across town</noscript>
+                </span><br>
+                <span class="text-gradient">tracked every step.</span>
             </h1>
             <p class="mt-5 max-w-xl text-lg text-brand-100">
                 Book a pickup in minutes, pay securely online, and follow your parcel from our rider's hands to a signed delivery at the door.
             </p>
             <div class="mt-8 flex flex-wrap gap-3">
-                <a href="{{ route('book.start') }}" class="btn btn-accent btn-lg">Send a parcel <x-icon name="arrow-right" class="size-4" /></a>
+                <a href="{{ route('book.start') }}" class="btn btn-accent btn-lg btn-shine">Send a parcel <x-icon name="arrow-right" class="size-4" /></a>
                 <a href="{{ route('pricing') }}" class="btn btn-on-dark btn-lg"><x-icon name="tag" class="size-4" />Get a price</a>
             </div>
             <ul class="mt-9 grid max-w-xl grid-cols-3 gap-3 text-sm text-brand-100">
@@ -44,7 +51,7 @@
         </div>
 
         <div class="relative">
-            <div class="card relative z-10 p-6 text-ink-800 shadow-xl sm:p-8" data-reveal="right">
+            <div class="card relative z-10 p-6 text-ink-800 shadow-xl transition-[translate] duration-300 ease-out sm:p-8" data-reveal="right" data-depth="10">
                 <h2 class="flex items-center gap-2 text-xl"><x-icon name="search" class="size-5 text-brand-600" />Track a parcel</h2>
                 <p class="mt-1 text-sm text-ink-600">Enter the tracking number from your receipt, email or SMS.</p>
                 <form action="{{ route('track.lookup') }}" method="post" class="mt-5 space-y-3">
@@ -58,7 +65,7 @@
 
             {{-- Animated example journey (illustrative only; labelled as such). --}}
             <div class="relative z-20 -mt-4 ml-auto w-[92%] animate-float-slow rounded-2xl border border-white/15 bg-brand-900/90 p-4 text-white shadow-2xl backdrop-blur-md sm:-mt-6 sm:w-[85%]"
-                 x-data="journeyDemo(@js($journey))" aria-hidden="true">
+                 x-data="journeyDemo(@js($journey))" aria-hidden="true" data-depth="26" style="transition: translate .3s ease-out">
                 <div class="flex items-center justify-between text-xs text-brand-100">
                     <span class="font-semibold tracking-wide uppercase">Example journey</span>
                     <span class="flex items-center gap-1.5"><span class="relative flex size-2"><span class="absolute inline-flex size-full animate-ping-slow rounded-full bg-success-200"></span><span class="relative inline-flex size-2 rounded-full bg-success-600"></span></span>Updating</span>
@@ -101,6 +108,19 @@
                 <span class="grid size-10 place-items-center rounded-lg bg-brand-50 text-brand-600"><x-icon :name="$icon" class="size-5" /></span>
                 <div><p class="text-2xl font-bold text-ink-900 tabular-nums" x-text="shown">{{ $n }}</p><p class="text-xs text-ink-500">{{ $label }}</p></div>
             </div>
+        @endforeach
+    </div>
+</section>
+
+{{-- ================= TICKER ================= --}}
+<section class="marquee mt-12 overflow-hidden border-y border-ink-200 bg-white py-4" aria-label="Why customers choose us">
+    <div class="marquee-track">
+        @foreach([0, 1] as $copy)
+            <ul class="flex shrink-0 items-center gap-10 pr-10" @if($copy) aria-hidden="true" @endif>
+                @foreach([['shield', 'Payments verified with the provider'], ['map-pin', 'Tracking at every hand-off'], ['check-circle', 'Signed proof of delivery'], ['calendar', 'Scheduled pickups'], ['upload', 'Bulk uploads for business'], ['life-buoy', 'Real support team'], ['lock', 'Private delivery photos'], ['bike', 'Riders who know the city']] as [$ic, $txt])
+                    <li class="flex items-center gap-2 text-sm font-semibold whitespace-nowrap text-ink-700"><span class="grid size-7 place-items-center rounded-full bg-brand-50 text-brand-600"><x-icon :name="$ic" class="size-4" /></span>{{ $txt }}</li>
+                @endforeach
+            </ul>
         @endforeach
     </div>
 </section>
@@ -259,7 +279,7 @@
                 <p class="mt-2 text-brand-100">Get a price in seconds{{ \App\Support\Settings::get('guest_booking_enabled') ? ' — no account needed' : '' }}.</p>
             </div>
             <div class="flex flex-wrap gap-3">
-                <a href="{{ route('book.start') }}" class="btn btn-accent btn-lg">Send a parcel <x-icon name="arrow-right" class="size-4" /></a>
+                <a href="{{ route('book.start') }}" class="btn btn-accent btn-lg btn-shine">Send a parcel <x-icon name="arrow-right" class="size-4" /></a>
                 @if($p = \App\Support\Settings::get('support_phone'))<a href="tel:{{ $p }}" class="btn btn-on-dark btn-lg"><x-icon name="phone" class="size-4" />{{ $p }}</a>@endif
             </div>
         </div>

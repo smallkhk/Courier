@@ -17,6 +17,7 @@ class Settings
         'support_email' => ['email', 'Support email'],
         'support_phone' => ['text', 'Support phone'],
         'office_address' => ['text', 'Head office address'],
+        'whatsapp_number' => ['text', 'WhatsApp number for the chat button (international format, e.g. 2348030000000; blank hides it)'],
         'tracking_prefix' => ['text', 'Tracking number prefix (2–4 letters)'],
         'default_currency' => ['text', 'Default currency (ISO 4217)'],
         'currencies' => ['list', 'Supported currencies (comma separated)'],

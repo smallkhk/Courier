@@ -280,3 +280,89 @@
     .drive { display: none; }
     .photo-hero > img { transform: none; }
 }
+
+/* ------------------------------------------------------------------
+ * Branded loading screen (first page view per browser session only),
+ * navigation progress bar, and extra motion.
+ * ------------------------------------------------------------------ */
+#splash { display: none; }
+.js-splash #splash {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    display: grid;
+    place-items: center;
+    background: radial-gradient(60rem 40rem at 50% 35%, #12348f 0%, #0a1d55 55%, #061236 100%);
+    color: #fff;
+    transition: opacity 0.55s ease, visibility 0.55s ease, clip-path 0.7s cubic-bezier(0.7, 0, 0.3, 1);
+    clip-path: inset(0 0 0 0);
+}
+.js-splash.splash-done #splash { opacity: 0; visibility: hidden; clip-path: inset(0 0 100% 0); pointer-events: none; }
+.splash-logo path, .splash-logo line { stroke-dasharray: 100; stroke-dashoffset: 100; animation: draw 0.8s cubic-bezier(0.65, 0, 0.35, 1) forwards; }
+.splash-logo path:nth-child(2) { animation-delay: 0.15s; }
+.splash-logo path:nth-child(3) { animation-delay: 0.3s; }
+.splash-logo path:nth-child(4), .splash-logo line { animation-delay: 0.4s; }
+.splash-logo-tile { animation: pop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+.splash-name span { display: inline-block; opacity: 0; transform: translateY(12px); animation: rise 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards; animation-delay: calc(0.2s + var(--i) * 0.03s); }
+.splash-road { position: relative; height: 34px; width: min(280px, 70vw); overflow: hidden; }
+.splash-road::after { content: ''; position: absolute; left: 0; right: 0; bottom: 6px; height: 2px; background: repeating-linear-gradient(90deg, rgb(255 255 255 / 0.4) 0 10px, transparent 10px 18px); animation: road 0.6s linear infinite; }
+.splash-van { position: absolute; bottom: 9px; left: 0; color: var(--color-accent-300); animation: van 1.6s cubic-bezier(0.45, 0, 0.2, 1) infinite; }
+.splash-bar { height: 3px; width: min(280px, 70vw); border-radius: 9999px; background: rgb(255 255 255 / 0.15); overflow: hidden; }
+.splash-bar > span { display: block; height: 100%; width: 100%; transform-origin: left; background: linear-gradient(90deg, var(--color-accent-300), var(--color-accent-400)); animation: load 1.8s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+
+@keyframes draw { to { stroke-dashoffset: 0; } }
+@keyframes pop { from { transform: scale(0.4) rotate(-12deg); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes road { from { background-position: 0 0; } to { background-position: -18px 0; } }
+@keyframes van { 0% { transform: translateX(-40px); } 100% { transform: translateX(300px); } }
+@keyframes load { from { transform: scaleX(0.05); } to { transform: scaleX(1); } }
+
+/* Navigation progress bar */
+#nav-progress { position: fixed; top: 0; left: 0; right: 0; z-index: 90; height: 3px; pointer-events: none; transform-origin: left; transform: scaleX(0); opacity: 0; background: linear-gradient(90deg, var(--color-accent-300), var(--color-accent-500), var(--color-brand-400)); box-shadow: 0 0 10px var(--color-accent-400); }
+#nav-progress.running { opacity: 1; animation: nav-progress 8s cubic-bezier(0.1, 0.9, 0.2, 1) forwards; }
+@keyframes nav-progress { from { transform: scaleX(0); } 20% { transform: scaleX(0.5); } to { transform: scaleX(0.92); } }
+
+/* Hero extras */
+@keyframes marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+.marquee-track { display: flex; width: max-content; animation: marquee 40s linear infinite; }
+.marquee:hover .marquee-track { animation-play-state: paused; }
+@keyframes word-in { from { opacity: 0; transform: translateY(0.4em) rotateX(-60deg); filter: blur(4px); } to { opacity: 1; transform: none; filter: none; } }
+.word-underline { position: absolute; left: 0; right: 0; bottom: -0.05em; height: 0.12em; border-radius: 9999px; background: linear-gradient(90deg, var(--color-accent-300), var(--color-accent-500)); transform-origin: left; animation: fill-x 0.9s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.word-in { display: inline-block; animation: word-in 0.6s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+/* Shine sweep on primary call-to-action buttons */
+.btn-shine { position: relative; overflow: hidden; }
+.btn-shine::after { content: ''; position: absolute; top: 0; left: -60%; width: 40%; height: 100%; transform: skewX(-20deg); background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.55), transparent); animation: shine 3.8s ease-in-out infinite; }
+@keyframes shine { 0%, 60% { left: -60%; } 100% { left: 130%; } }
+
+/* Alerts slide in; success check draws itself */
+.alert { animation: rise 0.45s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+/* Tracking timeline: items cascade in, latest dot pulses */
+.timeline-item { animation: rise 0.5s cubic-bezier(0.22, 1, 0.36, 1) both; animation-delay: calc(var(--i, 0) * 90ms); }
+.pulse-dot { box-shadow: 0 0 0 0 rgb(20 71 230 / 0.55); animation: pulse-dot 2s infinite; }
+@keyframes pulse-dot { 70% { box-shadow: 0 0 0 12px rgb(20 71 230 / 0); } 100% { box-shadow: 0 0 0 0 rgb(20 71 230 / 0); } }
+
+/* Logo mark wiggle on hover */
+.logo-mark { transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
+a:hover > .logo-mark { transform: rotate(-10deg) scale(1.08); }
+
+/* Header gains shadow once the page is scrolled */
+.header-scrolled { box-shadow: 0 8px 24px -12px rgb(15 23 42 / 0.25); }
+
+/* Floating WhatsApp button */
+@keyframes wa-ring { 0% { transform: scale(1); opacity: 0.6; } 100% { transform: scale(1.7); opacity: 0; } }
+.wa-ring { animation: wa-ring 2.2s ease-out infinite; }
+
+/* Error-page scene: bobbing rider, spinning wheels, scrolling city */
+@keyframes bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes city { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+.scene-rider { animation: bob 0.5s ease-in-out infinite; }
+.scene-wheel { transform-box: fill-box; transform-origin: center; animation: spin 0.6s linear infinite; }
+.scene-city { animation: city 18s linear infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+    .js-splash #splash { display: none; }
+    .marquee-track { animation: none; flex-wrap: wrap; width: auto; }
+    .btn-shine::after { display: none; }
+}

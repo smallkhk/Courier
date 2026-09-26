@@ -9,18 +9,21 @@
     <meta name="description" content="@yield('description', 'Book parcel pickup and delivery, get instant quotes and track shipments with '.$brand.'.')">
     <meta name="theme-color" content="#0f2f8f">
     <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="/icons/icon-192.png">
+    <link rel="manifest" href="/manifest.webmanifest">
     <x-reveal-boot />
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="flex min-h-full flex-col">
+<x-splash />
 <a href="#main" class="skip-link">Skip to content</a>
 @if(config('courier.payments.provider') === 'sandbox' && ! app()->environment('production'))
     <div class="bg-accent-300 px-4 py-1.5 text-center text-xs font-semibold text-ink-900" role="note">DEVELOPMENT MODE — payments use a sandbox, no real money moves. Emails/SMS are logged, not sent.</div>
 @endif
-<header class="sticky top-0 z-40 border-b border-ink-200 bg-white/95 backdrop-blur" x-data="{ open: false }">
+<header class="sticky top-0 z-40 border-b border-ink-200 bg-white/95 backdrop-blur transition-shadow" x-data="{ open: false, scrolled: false }" @scroll.window.throttle.100ms="scrolled = window.scrollY > 8" :class="scrolled && 'header-scrolled'">
     <div class="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6">
         <a href="{{ route('home') }}" class="flex items-center gap-2 text-lg font-bold text-ink-900 no-underline hover:no-underline">
-            <span class="grid size-9 place-items-center rounded-lg bg-brand-600 text-white"><x-icon name="package" class="size-5" /></span>
+            <x-logo-mark />
             {{ $brand }}
         </a>
         <nav class="hidden items-center gap-1 lg:flex" aria-label="Main">
@@ -35,7 +38,7 @@
             @else
                 <a href="{{ route('login') }}" class="btn btn-ghost">Sign in</a>
             @endauth
-            <a href="{{ route('book.start') }}" class="btn btn-primary">Send a parcel</a>
+            <a href="{{ route('book.start') }}" class="btn btn-primary btn-shine">Send a parcel</a>
         </div>
         <button type="button" class="btn btn-ghost lg:hidden" @click="open = !open" :aria-expanded="open.toString()" aria-controls="mobile-nav" aria-label="Menu">
             <x-icon name="menu" />
@@ -69,7 +72,7 @@
 <footer class="mt-16 bg-ink-900 text-ink-300">
     <div class="mx-auto grid max-w-7xl gap-8 px-4 py-12 sm:px-6 md:grid-cols-4">
         <div>
-            <p class="flex items-center gap-2 text-lg font-bold text-white"><span class="grid size-8 place-items-center rounded-lg bg-brand-600"><x-icon name="package" class="size-4" /></span>{{ $brand }}</p>
+            <p class="flex items-center gap-2 text-lg font-bold text-white"><x-logo-mark size="size-8" />{{ $brand }}</p>
             <p class="mt-3 text-sm">Parcel pickup, delivery and tracking.</p>
             @if($addr = \App\Support\Settings::get('office_address'))<p class="mt-3 text-sm">{{ $addr }}</p>@endif
         </div>
@@ -111,5 +114,10 @@
         </div>
     </div>
 </footer>
+<x-whatsapp />
+<button type="button" x-data="backToTop" x-cloak x-show="show" x-transition.opacity.scale.origin.bottom @click="go()"
+        class="fixed bottom-4 left-4 z-40 grid size-11 place-items-center rounded-full bg-brand-600 text-white shadow-lg transition hover:-translate-y-0.5 hover:bg-brand-700 sm:bottom-6 sm:left-6" aria-label="Back to top">
+    <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m18 15-6-6-6 6"/></svg>
+</button>
 </body>
 </html>
