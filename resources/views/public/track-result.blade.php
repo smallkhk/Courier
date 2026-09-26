@@ -14,8 +14,8 @@
     $order = collect($stages)->search(fn($s) => in_array($shipment->status->value, $s[1]));
 @endphp
 <div class="mx-auto max-w-4xl">
-    <div class="card overflow-hidden">
-        <div class="bg-brand-950 px-5 py-6 text-white sm:px-8">
+    <div class="card overflow-hidden" data-reveal>
+        <div class="photo-hero px-5 py-6 sm:px-8"><img src="{{ asset('images/truck-night-sm.webp') }}" alt="">
             <p class="text-sm text-brand-200">Tracking number</p>
             <div class="mt-1 flex flex-wrap items-center justify-between gap-3">
                 <p class="font-mono text-2xl font-bold tracking-wider">{{ $shipment->tracking_number }}</p>
@@ -31,7 +31,7 @@
                 @foreach($stages as $i => [$label])
                     @php $done = $i <= $order; @endphp
                     <li class="flex flex-col items-center gap-2">
-                        <span class="h-1.5 w-full rounded-full {{ $done ? 'bg-brand-600' : 'bg-ink-200' }}"></span>
+                        <span class="h-1.5 w-full overflow-hidden rounded-full bg-ink-200"><span class="block h-full rounded-full bg-brand-600 {{ $done ? 'progress-fill' : 'scale-x-0' }}" style="animation-delay: {{ $i * 220 }}ms"></span></span>
                         <span class="{{ $done ? 'font-semibold text-ink-900' : 'text-ink-500' }}">{{ $label }}@if($i === $order)<span class="sr-only"> (current)</span>@endif</span>
                     </li>
                 @endforeach
@@ -57,7 +57,7 @@
     </div>
 
     <div class="mt-6 grid gap-6 lg:grid-cols-[1fr_320px]">
-        <section class="card card-body" aria-labelledby="history">
+        <section class="card card-body" aria-labelledby="history" data-reveal>
             <h2 id="history" class="mb-6 text-lg">Shipment history</h2>
             <x-timeline :events="$shipment->events" />
         </section>

@@ -1,9 +1,11 @@
 @extends('layouts.public')
 @section('title', 'Contact & support')
+@section('hero')
+<x-photo-hero image="loading-parcels" eyebrow="Support" icon="life-buoy" title="Contact &amp; support" subtitle="Tell us what's going on and we'll get back to you by email." />
+@endsection
 @section('content')
 <div class="grid gap-8 lg:grid-cols-[1fr_360px]">
     <div>
-        <x-page-header title="Contact & support" subtitle="Tell us what's going on and we'll get back to you by email." />
         <form method="post" action="{{ route('support.contact.submit') }}" class="card card-body space-y-4">
             @csrf
             <x-spam-guard />
@@ -20,7 +22,7 @@
             <button class="btn btn-primary" type="submit">Send message</button>
         </form>
     </div>
-    <aside class="space-y-4 lg:pt-20">
+    <aside class="space-y-4">
         <div class="card card-body space-y-3 text-sm">
             <h2 class="text-base">Other ways to reach us</h2>
             @if($e = \App\Support\Settings::get('support_email'))<p class="flex items-center gap-2"><x-icon name="mail" class="size-4 text-brand-600" /><a href="mailto:{{ $e }}">{{ $e }}</a></p>@endif

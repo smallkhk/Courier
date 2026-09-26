@@ -1,13 +1,9 @@
 @extends('layouts.public')
 @section('title', 'Sign in')
+@section('bare', true)
 @section('content')
-<div class="mx-auto max-w-md">
-    <div class="mb-6 text-center">
-        <span class="mx-auto grid size-12 place-items-center rounded-xl bg-brand-600 text-white"><x-icon name="user" /></span>
-        <h1 class="mt-4 text-2xl">Sign in</h1>
-        <p class="mt-1 text-ink-600">Customers, businesses, riders and staff.</p>
-    </div>
-    <form method="post" action="{{ route('login') }}" class="card card-body space-y-4">
+<x-auth-shell title="Welcome back" subtitle="Sign in to book, track and manage deliveries. Customers, businesses, riders and staff." image="courier-boxes">
+    <form method="post" action="{{ route('login') }}" class="space-y-4">
         @csrf
         <x-field name="email" label="Email" type="email" required autocomplete="email" autofocus />
         <x-field name="password" label="Password" type="password" required autocomplete="current-password" />
@@ -18,5 +14,5 @@
         <button class="btn btn-primary btn-lg w-full" type="submit">Sign in</button>
     </form>
     <p class="mt-6 text-center text-sm text-ink-600">New here? <a href="{{ route('register') }}">Create an account</a></p>
-</div>
+</x-auth-shell>
 @endsection

@@ -1,9 +1,16 @@
 @extends('layouts.portal', ['portal' => 'account'])
 @section('title', 'Dashboard')
 @section('content')
-<x-page-header :title="'Hello, '.strtok(auth()->user()->name, ' ')" subtitle="Here's what's happening with your parcels.">
-    <a href="{{ route('book.start') }}" class="btn btn-primary"><x-icon name="plus" class="size-4" />Send a parcel</a>
-</x-page-header>
+<section class="photo-hero mb-6 rounded-2xl shadow-lg" data-reveal>
+    <img src="{{ asset('images/courier-boxes-sm.webp') }}" alt="">
+    <div class="flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between sm:p-8">
+        <div>
+            <p class="text-sm text-brand-200">{{ now()->timezone(\App\Support\Settings::get('timezone'))->format('l j F') }}</p>
+            <h1 class="text-2xl text-white sm:text-3xl">Hello, {{ strtok(auth()->user()->name, ' ') }}</h1>
+        </div>
+        <a href="{{ route('book.start') }}" class="btn btn-accent btn-lg"><x-icon name="plus" class="size-4" />Send a parcel</a>
+    </div>
+</section>
 @if(! auth()->user()->hasVerifiedEmail())
     <x-alert type="warning" class="mb-6">Please verify your email address. <form method="post" action="{{ route('verification.send') }}" class="inline">@csrf<button class="font-semibold underline" type="submit">Resend link</button></form></x-alert>
 @endif

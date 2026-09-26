@@ -1,9 +1,16 @@
 @extends('layouts.portal', ['portal' => 'ops'])
 @section('title', 'Operations')
 @section('content')
-<x-page-header title="Operations" :subtitle="now()->timezone(\App\Support\Settings::get('timezone'))->format('l j F Y')">
-    <a href="{{ route('ops.dispatch') }}" class="btn btn-primary"><x-icon name="route" class="size-4" />Dispatch board</a>
-</x-page-header>
+<section class="photo-hero mb-6 rounded-2xl shadow-lg" data-reveal>
+    <img src="{{ asset('images/highway-sm.webp') }}" alt="">
+    <div class="flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between sm:p-8">
+        <div>
+            <p class="text-sm text-brand-200">{{ now()->timezone(\App\Support\Settings::get('timezone'))->format('l j F Y') }}</p>
+            <h1 class="text-2xl text-white sm:text-3xl">Operations</h1>
+        </div>
+        <a href="{{ route('ops.dispatch') }}" class="btn btn-accent btn-lg"><x-icon name="route" class="size-4" />Dispatch board</a>
+    </div>
+</section>
 <div class="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
     <x-stat label="Booked today" :value="$ops['booked_today']" icon="calendar" :href="route('ops.shipments.index', ['from' => today()->toDateString()])" />
     <x-stat label="Awaiting pickup" :value="$ops['awaiting_pickup']" icon="package" />

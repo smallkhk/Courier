@@ -1,7 +1,9 @@
 @extends('layouts.public')
 @section('title', 'Branches & pickup points')
+@section('hero')
+<x-photo-hero image="warehouse-aisle" eyebrow="Branches" icon="warehouse" title="Branches &amp; pickup points" subtitle="Drop off, collect, or get help in person." />
+@endsection
 @section('content')
-<x-page-header title="Branches & pickup points" subtitle="Drop off, collect, or get help in person." />
 <form method="get" class="mb-6 flex flex-wrap items-end gap-3">
     <div class="w-full sm:w-64"><x-field name="state" label="Filter by state" type="select" :options="$states->mapWithKeys(fn($s) => [$s => $s])" placeholder="All states" :value="request('state')" /></div>
     <button class="btn btn-secondary" type="submit">Apply</button>
@@ -13,9 +15,9 @@
     {{-- Accessible list view (primary); the map is an enhancement. --}}
     <ul class="space-y-4" aria-label="Branch list">
         @foreach($branches as $b)
-            <li class="card card-body">
+            <li class="card card-body hover-lift" data-reveal>
                 <div class="flex flex-wrap items-start justify-between gap-2">
-                    <h2 class="text-lg">{{ $b->name }}</h2>
+                    <h2 class="flex items-center gap-3 text-lg"><x-illus name="pin" size="size-10" />{{ $b->name }}</h2>
                     @if($b->is_pickup_point)<x-pill tone="info" icon="package">Pickup point</x-pill>@endif
                 </div>
                 <p class="mt-1 text-ink-700">{{ $b->address }}, {{ $b->city }}, {{ $b->state }}</p>

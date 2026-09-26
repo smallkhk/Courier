@@ -1,13 +1,9 @@
 @extends('layouts.public')
 @section('title', 'Create account')
+@section('bare', true)
 @section('content')
-<div class="mx-auto max-w-md">
-    <div class="mb-6 text-center">
-        <span class="mx-auto grid size-12 place-items-center rounded-xl bg-brand-600 text-white"><x-icon name="user" /></span>
-        <h1 class="mt-4 text-2xl">Create your account</h1>
-        <p class="mt-1 text-ink-600">Book faster, save addresses and see all your shipments.</p>
-    </div>
-    <form method="post" action="{{ route('register') }}" class="card card-body space-y-4">
+<x-auth-shell title="Create your account" subtitle="Book faster, save addresses and see all your shipments in one place." image="loading-parcels">
+    <form method="post" action="{{ route('register') }}" class="space-y-4">
         @csrf
         <x-spam-guard />
         <x-field name="name" label="Full name" required autocomplete="name" />
@@ -25,5 +21,5 @@
         <button class="btn btn-primary btn-lg w-full" type="submit">Create account</button>
     </form>
     <p class="mt-6 text-center text-sm text-ink-600">Already have an account? <a href="{{ route('login') }}">Sign in</a></p>
-</div>
+</x-auth-shell>
 @endsection

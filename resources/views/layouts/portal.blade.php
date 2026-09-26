@@ -13,6 +13,7 @@
     <meta name="robots" content="noindex">
     <title>@yield('title', $portalNames[$portal]) · {{ $brand }}</title>
     <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <x-reveal-boot />
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="min-h-full" x-data="{ nav: false }">

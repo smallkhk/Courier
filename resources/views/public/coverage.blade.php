@@ -1,17 +1,19 @@
 @extends('layouts.public')
 @section('title', 'Coverage areas')
+@section('hero')
+<x-photo-hero image="highway" eyebrow="Coverage" icon="globe" title="Where we pick up and deliver" subtitle="Routes are checked again automatically when you book.">
+    <a href="{{ route('branches') }}" class="btn btn-on-dark btn-lg"><x-icon name="map-pin" class="size-4" />Branches &amp; pickup points</a>
+</x-photo-hero>
+@endsection
 @section('content')
-<x-page-header title="Coverage areas" subtitle="Where we pick up and deliver today. Routes are checked again when you book.">
-    <a href="{{ route('branches') }}" class="btn btn-secondary"><x-icon name="map-pin" class="size-4" />Branches & pickup points</a>
-</x-page-header>
 @forelse($zones as $state => $list)
-    <section class="mb-8">
-        <h2 class="mb-3 text-lg">{{ $state }}</h2>
+    <section class="mb-10" data-reveal>
+        <h2 class="mb-4 flex items-center gap-2 text-xl"><x-icon name="map-pin" class="size-5 text-brand-600" />{{ $state }}</h2>
         <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             @foreach($list as $z)
-                <div class="card card-body">
+                <div class="card card-body hover-lift">
                     <div class="flex items-start justify-between gap-2">
-                        <h3 class="font-semibold">{{ $z->name }}</h3>
+                        <h3 class="flex items-center gap-3 font-semibold"><x-illus name="pin" :tone="$z->is_remote ? 'accent' : 'brand'" size="size-10" />{{ $z->name }}</h3>
                         @if($z->is_remote)<x-pill tone="warning" icon="alert">Remote area</x-pill>@endif
                     </div>
                     <ul class="mt-3 space-y-1 text-sm">

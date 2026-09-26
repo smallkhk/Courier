@@ -1,9 +1,11 @@
 @extends('layouts.public')
 @section('title', 'Pricing & quote')
+@section('hero')
+<x-photo-hero image="loading-parcels" eyebrow="Instant quote" icon="tag" title="Know the price before you book" subtitle="Calculated from our current rates, with a full breakdown. The final price is confirmed when you book with full details." />
+@endsection
 @section('content')
-<x-page-header title="Get a price" subtitle="Prices are calculated from our current rates. The final price is confirmed when you book with full details." />
 <div class="grid gap-8 lg:grid-cols-[1fr_380px]">
-    <form method="post" action="{{ route('pricing.estimate') }}" class="card card-body space-y-5">
+    <form method="post" action="{{ route('pricing.estimate') }}" class="card card-body space-y-5" data-reveal>
         @csrf
         <div class="grid gap-4 sm:grid-cols-2">
             <x-field name="origin_zone_id" label="From (pickup area)" type="select" required :options="$zones->mapWithKeys(fn($z) => [$z->id => $z->name.' — '.$z->state])" />
@@ -43,7 +45,7 @@
             </div>
         @else
             <div class="card card-body text-sm text-ink-600">
-                <x-icon name="tag" class="size-6 text-brand-600" />
+                <x-illus name="wallet" tone="accent" size="size-12" />
                 <h2 class="mt-3 text-base">What affects the price?</h2>
                 <ul class="mt-2 list-disc space-y-1 pl-5">
                     <li>Pickup and delivery areas</li>

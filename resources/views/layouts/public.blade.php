@@ -9,6 +9,7 @@
     <meta name="description" content="@yield('description', 'Book parcel pickup and delivery, get instant quotes and track shipments with '.$brand.'.')">
     <meta name="theme-color" content="#0f2f8f">
     <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <x-reveal-boot />
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="flex min-h-full flex-col">
@@ -57,6 +58,7 @@
     @hasSection('bare')
         @yield('content')
     @else
+        @yield('hero')
         <div class="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-12">
             <x-flash />
             <div class="mt-4">@yield('content')</div>

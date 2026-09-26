@@ -113,6 +113,7 @@
     @media (prefers-reduced-motion: reduce) {
         *, *::before, *::after {
             animation-duration: 0.01ms !important;
+            animation-iteration-count: 1 !important;
             transition-duration: 0.01ms !important;
             scroll-behavior: auto !important;
         }
@@ -181,4 +182,101 @@
     .skip-link { @apply sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded focus:bg-white focus:px-4 focus:py-2 focus:shadow-lg; }
 
     .spinner { @apply inline-block size-4 animate-spin rounded-full border-2 border-current border-r-transparent; }
+}
+
+/* ------------------------------------------------------------------
+ * Motion. Every animation is disabled by the prefers-reduced-motion
+ * rule in the base layer, and reveal content stays visible without JS.
+ * ------------------------------------------------------------------ */
+@theme {
+    --animate-kenburns: kenburns 24s ease-in-out infinite alternate;
+    --animate-float: float 6s ease-in-out infinite;
+    --animate-float-slow: float 9s ease-in-out infinite;
+    --animate-dash: dash 2.2s linear infinite;
+    --animate-ping-slow: ping-slow 2.4s cubic-bezier(0, 0, 0.2, 1) infinite;
+    --animate-shimmer: shimmer 3s linear infinite;
+    --animate-fill: fill-x 1.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes kenburns {
+    from { transform: scale(1.02) translate3d(0, 0, 0); }
+    to { transform: scale(1.14) translate3d(-2%, -1.5%, 0); }
+}
+@keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+}
+@keyframes dash {
+    to { stroke-dashoffset: -28; }
+}
+@keyframes ping-slow {
+    0% { transform: scale(1); opacity: 0.7; }
+    80%, 100% { transform: scale(2.4); opacity: 0; }
+}
+@keyframes shimmer {
+    from { background-position: -200% 0; }
+    to { background-position: 200% 0; }
+}
+@keyframes fill-x {
+    from { transform: scaleX(0); }
+    to { transform: scaleX(1); }
+}
+@keyframes rise {
+    from { opacity: 0; transform: translateY(24px); }
+    to { opacity: 1; transform: none; }
+}
+
+@layer components {
+    /* Scroll reveal: hidden only when JS is running (html.js), shown by IntersectionObserver. */
+    .js [data-reveal] {
+        opacity: 0;
+        transform: translateY(24px);
+        transition: opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1), transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+        transition-delay: var(--d, 0ms);
+    }
+    .js [data-reveal].is-visible { opacity: 1; transform: none; }
+    .js [data-reveal='left'] { transform: translateX(-32px); }
+    .js [data-reveal='right'] { transform: translateX(32px); }
+    .js [data-reveal='zoom'] { transform: scale(0.94); }
+
+    .hero-rise > * { animation: rise 0.8s cubic-bezier(0.22, 1, 0.36, 1) both; }
+    .hero-rise > *:nth-child(2) { animation-delay: 0.08s; }
+    .hero-rise > *:nth-child(3) { animation-delay: 0.16s; }
+    .hero-rise > *:nth-child(4) { animation-delay: 0.24s; }
+    .hero-rise > *:nth-child(5) { animation-delay: 0.32s; }
+
+    .hover-lift { @apply transition duration-300 ease-out hover:-translate-y-1 hover:shadow-lg; }
+    .btn-primary, .btn-accent { @apply transition hover:-translate-y-px hover:shadow-md active:translate-y-0; }
+
+    .glass { @apply border border-white/15 bg-white/10 backdrop-blur-md; }
+
+    /* Photo banner used at the top of inner public pages. */
+    .photo-hero { @apply relative isolate overflow-hidden bg-brand-950 text-white; }
+    .photo-hero > img { @apply absolute inset-0 -z-20 h-full w-full animate-kenburns object-cover; }
+    .photo-hero::before {
+        content: '';
+        @apply absolute inset-0 -z-10;
+        background: linear-gradient(100deg, rgb(8 22 64 / 0.94) 0%, rgb(13 36 102 / 0.82) 45%, rgb(15 47 143 / 0.45) 100%);
+    }
+
+    .text-gradient {
+        @apply bg-clip-text text-transparent;
+        background-image: linear-gradient(90deg, var(--color-accent-300), var(--color-accent-400), #ffd98a, var(--color-accent-300));
+        background-size: 200% auto;
+        animation: var(--animate-shimmer);
+    }
+
+    .route-line { stroke-dasharray: 8 6; animation: var(--animate-dash); }
+    .progress-fill { transform-origin: left; animation: var(--animate-fill); }
+}
+
+/* Van driving along the hero's road line. */
+@keyframes drive {
+    from { transform: translateX(-10vw); }
+    to { transform: translateX(110vw); }
+}
+.drive { animation: drive 14s linear infinite; }
+@media (prefers-reduced-motion: reduce) {
+    .drive { display: none; }
+    .photo-hero > img { transform: none; }
 }

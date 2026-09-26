@@ -1,13 +1,18 @@
 @extends('layouts.public')
 @section('title', 'Services')
+@section('hero')
+<x-photo-hero image="truck-night" eyebrow="Our services" icon="zap" title="Delivery options for every deadline" subtitle="From same-day city runs to nationwide delivery. Availability depends on route; delivery times are estimates, not guarantees.">
+    <a href="{{ route('pricing') }}" class="btn btn-accent btn-lg">Get a price</a>
+    <a href="{{ route('book.start') }}" class="btn btn-on-dark btn-lg">Book now</a>
+</x-photo-hero>
+@endsection
 @section('content')
-<x-page-header title="Delivery services" subtitle="Service availability depends on the pickup and delivery areas. Delivery times are estimates, not guarantees." />
 <div class="grid gap-6 md:grid-cols-2">
-    @forelse($services as $s)
-        <article class="card card-body">
+    @forelse($services as $i => $s)
+        <article class="card card-body hover-lift" data-reveal style="--d: {{ ($i % 2) * 100 }}ms">
             <div class="flex items-start justify-between gap-4">
                 <div class="flex items-center gap-3">
-                    <span class="grid size-11 place-items-center rounded-xl bg-brand-50 text-brand-600"><x-icon name="zap" /></span>
+                    <x-illus :name="['clock', 'track', 'box', 'globe'][$i % 4]" :tone="['accent', 'brand', 'violet', 'sky'][$i % 4]" size="size-12" />
                     <h2 class="text-xl">{{ $s->name }}</h2>
                 </div>
                 @if($s->transitLabel())<x-pill tone="info" icon="clock">{{ $s->transitLabel() }}</x-pill>@endif

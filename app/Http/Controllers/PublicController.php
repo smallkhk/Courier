@@ -16,7 +16,7 @@ class PublicController extends Controller
     public function home()
     {
         return view('public.home', [
-            'services' => Service::where('active', true)->orderBy('sort_order')->limit(4)->get(),
+            'services' => Service::where('active', true)->orderBy('sort_order')->get(),
             'zones' => ServiceZone::where('active', true)->orderBy('state')->get(),
             'branchCount' => Branch::where('active', true)->count(),
         ]);

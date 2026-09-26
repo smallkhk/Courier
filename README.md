@@ -17,6 +17,7 @@ See **[DEPLOYMENT.md](DEPLOYMENT.md)** for step-by-step go-live instructions.
 | Database | **MySQL / MariaDB** (InnoDB, utf8mb4) | Available on every cPanel plan; transactional |
 | UI | **Blade + Tailwind CSS v4 + Alpine.js**, built with Vite | Server-rendered, fast, accessible; assets pre-built and committed so the server needs no Node.js |
 | Design system | Tokens generated with the *ui-design-system* skill ("modern": Inter, 8 px radius, 8 pt grid, layered shadows), hand-tuned for WCAG AA around brand blue `#1447E6` | `resources/css/app.css` |
+| Imagery & motion | Courier-themed CC0 photos (Openverse/rawpixel) self-hosted as optimised WebP in `public/images` — see `public/images/CREDITS.md`; duotone illustrated icons (`<x-illus>`); CSS scroll-reveal, Ken Burns hero, animated route lines; all motion disabled for `prefers-reduced-motion` | Swap in your own brand photography by replacing the files with the same names |
 | Maps | **Leaflet** + configurable XYZ tiles (OpenStreetMap by default) | No mandatory API key; swap to a commercial tile provider in production |
 | Payments | **Paystack** (server-side init, API verification, signed idempotent webhooks) + a clearly-labelled **sandbox** gateway for development | Nigerian market; sandbox refused in production |
 | Email | Laravel Mail over SMTP (cPanel mailbox or any provider) | `log` driver in development |

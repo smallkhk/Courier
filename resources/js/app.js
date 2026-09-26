@@ -7,6 +7,54 @@ import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({ iconUrl: markerIcon, iconRetinaUrl: markerIcon2x, shadowUrl: markerShadow });
 
+/* Scroll-reveal: elements with data-reveal fade/slide in once when they enter the viewport. */
+document.documentElement.classList.add('js');
+window.__revealReady = true;
+const revealObserver = 'IntersectionObserver' in window
+    ? new IntersectionObserver((entries) => {
+        entries.forEach((e) => {
+            if (e.isIntersecting) {
+                e.target.classList.add('is-visible');
+                revealObserver.unobserve(e.target);
+            }
+        });
+    }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' })
+    : null;
+const initReveal = () => document.querySelectorAll('[data-reveal]').forEach((el) => (revealObserver ? revealObserver.observe(el) : el.classList.add('is-visible')));
+document.readyState === 'loading' ? document.addEventListener('DOMContentLoaded', initReveal) : initReveal();
+
+/* Count up to a real number from the database when it scrolls into view. */
+Alpine.data('countUp', (target) => ({
+    shown: 0,
+    init() {
+        const run = () => {
+            const start = performance.now();
+            const tick = (t) => {
+                const p = Math.min(1, (t - start) / 1200);
+                this.shown = Math.round(target * (1 - Math.pow(1 - p, 3)));
+                if (p < 1) requestAnimationFrame(tick);
+            };
+            requestAnimationFrame(tick);
+        };
+        if (!('IntersectionObserver' in window) || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+            this.shown = target;
+            return;
+        }
+        const io = new IntersectionObserver(([e]) => { if (e.isIntersecting) { run(); io.disconnect(); } });
+        io.observe(this.$el);
+    },
+}));
+
+/* Hero demo: cycles through example journey stages (clearly labelled as an example). */
+Alpine.data('journeyDemo', (stages) => ({
+    stages,
+    i: 0,
+    init() {
+        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+        setInterval(() => { this.i = (this.i + 1) % this.stages.length; }, 2600);
+    },
+}));
+
 const csrf = () => document.querySelector('meta[name="csrf-token"]')?.content ?? '';
 
 async function api(url, options = {}) {
