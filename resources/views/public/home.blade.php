@@ -3,19 +3,20 @@
 @section('content')
 @php
     $brand = \App\Support\Settings::get('business_name');
-    $states = $zones->pluck('state')->unique();
+    $countries = $zones->pluck('country_code')->filter()->unique();
+    $worldwide = $zones->contains(fn ($z) => ! $z->country_code);
     $journey = [
-        ['icon' => 'package', 'label' => 'Picked up', 'where' => 'Ikeja'],
-        ['icon' => 'warehouse', 'label' => 'At sorting hub', 'where' => 'Ikeja hub'],
-        ['icon' => 'truck', 'label' => 'In transit', 'where' => 'Third Mainland Bridge'],
-        ['icon' => 'bike', 'label' => 'Out for delivery', 'where' => 'Lekki'],
+        ['icon' => 'package', 'label' => 'Picked up', 'where' => 'Brooklyn, NY'],
+        ['icon' => 'warehouse', 'label' => 'At sorting hub', 'where' => 'Newark, NJ'],
+        ['icon' => 'truck', 'label' => 'In transit', 'where' => 'JFK international gateway'],
+        ['icon' => 'bike', 'label' => 'Out for delivery', 'where' => 'Toronto, ON'],
         ['icon' => 'check', 'label' => 'Delivered', 'where' => 'Signed by recipient'],
     ];
 @endphp
 
 {{-- ================= HERO ================= --}}
 <section class="photo-hero">
-    <img src="{{ asset('images/hero-riders.webp') }}" srcset="{{ asset('images/hero-riders-sm.webp') }} 640w, {{ asset('images/hero-riders.webp') }} 1024w" sizes="100vw" alt="" fetchpriority="high">
+    <img src="{{ asset('images/nyc-midtown.webp') }}" srcset="{{ asset('images/nyc-midtown-sm.webp') }} 640w, {{ asset('images/nyc-midtown.webp') }} 1024w" sizes="100vw" alt="" fetchpriority="high">
     <div aria-hidden="true" class="pointer-events-none absolute -top-24 -right-24 -z-10 size-96 rounded-full bg-brand-500/30 blur-3xl"></div>
     <div aria-hidden="true" class="pointer-events-none absolute -bottom-32 left-1/3 -z-10 size-96 rounded-full bg-accent-400/20 blur-3xl"></div>
 
@@ -24,7 +25,7 @@
             <div><x-flash /></div>
             <p class="glass inline-flex w-fit items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold text-brand-50">
                 <span class="relative flex size-2"><span class="absolute inline-flex size-full animate-ping-slow rounded-full bg-accent-300"></span><span class="relative inline-flex size-2 rounded-full bg-accent-400"></span></span>
-                Same-day, express &amp; nationwide delivery
+                Same-day, nationwide &amp; international delivery
             </p>
             <h1 class="mt-5 text-[length:var(--text-fluid-h1)] leading-[1.05] font-extrabold tracking-tight text-white" x-data="rotatingWords(['across town', 'across the country', 'for your business', 'right to the door'])">
                 Parcel delivery<br>
@@ -100,7 +101,7 @@
     <div class="card grid grid-cols-2 divide-ink-100 shadow-lg sm:grid-cols-4 sm:divide-x" data-reveal>
         @foreach([
             [$zones->count(), 'Coverage areas', 'globe'],
-            [$states->count(), $states->count() === 1 ? 'State served' : 'States served', 'map-pin'],
+            [$worldwide ? count(\App\Support\Countries::all()) : $countries->count(), $worldwide ? 'Countries & territories' : ($countries->count() === 1 ? 'Country served' : 'Countries served'), 'map-pin'],
             [$branchCount, 'Branches & pickup points', 'warehouse'],
             [$services->count(), 'Delivery services', 'zap'],
         ] as [$n, $label, $icon])
@@ -117,7 +118,7 @@
     <div class="marquee-track">
         @foreach([0, 1] as $copy)
             <ul class="flex shrink-0 items-center gap-10 pr-10" @if($copy) aria-hidden="true" @endif>
-                @foreach([['shield', 'Payments verified with the provider'], ['map-pin', 'Tracking at every hand-off'], ['check-circle', 'Signed proof of delivery'], ['calendar', 'Scheduled pickups'], ['upload', 'Bulk uploads for business'], ['life-buoy', 'Real support team'], ['lock', 'Private delivery photos'], ['bike', 'Riders who know the city']] as [$ic, $txt])
+                @foreach([['shield', 'Payments verified with the provider'], ['map-pin', 'Tracking at every hand-off'], ['check-circle', 'Signed proof of delivery'], ['calendar', 'Scheduled pickups'], ['upload', 'Bulk uploads for business'], ['life-buoy', 'Real support team'], ['lock', 'Private delivery photos'], ['globe', 'Worldwide addresses & customs forms']] as [$ic, $txt])
                     <li class="flex items-center gap-2 text-sm font-semibold whitespace-nowrap text-ink-700"><span class="grid size-7 place-items-center rounded-full bg-brand-50 text-brand-600"><x-icon :name="$ic" class="size-4" /></span>{{ $txt }}</li>
                 @endforeach
             </ul>
@@ -172,8 +173,8 @@
             <p class="mt-4 text-lg text-ink-600">Every parcel is handled by a named rider and logged at each hand-off, so you always know who has it and where it is.</p>
             <ul class="mt-8 space-y-5">
                 @foreach([
-                    ['bike', 'brand', 'Riders who know your city', 'Assigned by area and workload, reachable through our operations team.'],
-                    ['shield', 'success', 'Secure, verified payments', 'Card, transfer or USSD — confirmed with the payment provider before we book.'],
+                    ['bike', 'brand', 'Couriers who know your city', 'Assigned by area and workload, reachable through our operations team.'],
+                    ['shield', 'success', 'Secure, verified payments', 'Card, Apple Pay or Google Pay — confirmed with the payment provider before we book.'],
                     ['support', 'accent', 'Help when you need it', 'Report a delay, damage or dispute and track the case to resolution.'],
                 ] as $i => [$ill, $tone, $t, $d])
                     <li class="flex gap-4" data-reveal style="--d: {{ 100 + $i * 100 }}ms">
@@ -246,8 +247,8 @@
         <h2 id="cov" class="mt-2 text-[length:var(--text-fluid-h2)]">Where we deliver</h2>
         <p class="mt-3 text-ink-600">Routes are checked automatically when you book — no surprises after you pay.</p>
         <ul class="mt-6 flex flex-wrap gap-2">
-            @forelse($states as $state)
-                <li class="badge badge-neutral px-3 py-1.5 text-sm transition hover:border-brand-300 hover:bg-brand-50"><x-icon name="map-pin" class="size-3.5 text-brand-600" />{{ $state }}</li>
+            @forelse($countries as $cc)
+                <li class="badge badge-neutral px-3 py-1.5 text-sm transition hover:border-brand-300 hover:bg-brand-50"><span aria-hidden="true">{{ \App\Support\Countries::flag($cc) }}</span>{{ \App\Support\Countries::name($cc) }}</li>
             @empty
                 <li class="text-ink-500">Coverage areas will be listed here once configured.</li>
             @endforelse

@@ -21,7 +21,10 @@ class Settings
         'tracking_prefix' => ['text', 'Tracking number prefix (2–4 letters)'],
         'default_currency' => ['text', 'Default currency (ISO 4217)'],
         'currencies' => ['list', 'Supported currencies (comma separated)'],
-        'timezone' => ['text', 'Display timezone'],
+        'timezone' => ['text', 'Display timezone (e.g. America/New_York)'],
+        'default_country' => ['text', 'Home country (ISO code, e.g. US) — default for addresses and phone numbers'],
+        'priority_countries' => ['list', 'Countries listed first in pickers (comma separated ISO codes)'],
+        'measurement_system' => ['text', 'Units shown to customers: imperial (lb/in) or metric (kg/cm)'],
         'guest_booking_enabled' => ['bool', 'Allow guest booking'],
         'cod_enabled' => ['bool', 'Offer cash on delivery (requires COD procedure)'],
         'quote_validity_minutes' => ['int', 'Quote validity (minutes)'],
@@ -66,6 +69,6 @@ class Settings
 
     public static function currency(): string
     {
-        return strtoupper((string) self::get('default_currency', 'NGN'));
+        return strtoupper((string) self::get('default_currency', 'USD'));
     }
 }

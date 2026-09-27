@@ -15,8 +15,11 @@ return new class extends Migration
             $table->id();
             $table->string('code', 32)->unique();
             $table->string('name');
-            $table->string('state', 100);
-            // Cities / LGAs covered by this zone, used to validate addresses.
+            // ISO 3166-1 alpha-2 country. NULL = matches any country (e.g. a "Rest of world" zone).
+            $table->char('country_code', 2)->nullable()->index();
+            // Optional narrowing rules; empty = whole country. Most specific matching zone wins.
+            $table->json('regions')->nullable();          // states/provinces, e.g. ["NY","NJ"]
+            $table->json('postal_prefixes')->nullable();  // e.g. ["100","101","112"] or ["SW1","EC"]
             $table->json('cities')->nullable();
             $table->boolean('is_remote')->default(false);
             $table->boolean('pickup_enabled')->default(true);
@@ -54,7 +57,9 @@ return new class extends Migration
             $table->foreignId('service_zone_id')->nullable()->constrained('service_zones')->nullOnDelete();
             $table->string('address');
             $table->string('city', 100);
-            $table->string('state', 100);
+            $table->string('region', 100)->nullable();
+            $table->string('postal_code', 20)->nullable();
+            $table->char('country_code', 2);
             $table->string('phone', 32)->nullable();
             $table->string('email')->nullable();
             $table->decimal('lat', 10, 7)->nullable();
@@ -107,8 +112,8 @@ return new class extends Migration
             $table->foreignId('business_id')->nullable()->constrained()->cascadeOnDelete();
             $table->char('currency', 3);
             $table->decimal('base_fee', 12, 2);
-            $table->decimal('included_weight_kg', 8, 2)->default(0);
-            $table->decimal('per_kg_fee', 12, 2)->default(0);
+            $table->decimal('included_weight', 8, 2)->default(0);
+            $table->decimal('per_weight_fee', 12, 2)->default(0);
             $table->decimal('extra_parcel_fee', 12, 2)->default(0);
             $table->decimal('min_charge', 12, 2)->default(0);
             $table->decimal('remote_surcharge', 12, 2)->default(0);
@@ -117,7 +122,10 @@ return new class extends Migration
             $table->decimal('insurance_min_fee', 12, 2)->default(0);
             $table->decimal('discount_percent', 6, 3)->default(0);
             $table->decimal('tax_rate_percent', 6, 3)->default(0);
-            $table->unsignedInteger('volumetric_divisor')->default(5000);
+            // kg: weights in kg, dimensions in cm, divisor in cm³/kg (typically 5000).
+            // lb: weights in lb, dimensions in inches, divisor in in³/lb (typically 139 in the US).
+            $table->string('weight_unit', 2)->default('lb');
+            $table->unsignedInteger('volumetric_divisor')->default(139);
             $table->date('effective_from')->nullable();
             $table->date('effective_to')->nullable();
             $table->boolean('active')->default(true);
@@ -136,8 +144,12 @@ return new class extends Migration
             $table->string('line1');
             $table->string('line2')->nullable();
             $table->string('city', 100);
-            $table->string('state', 100);
-            $table->foreignId('service_zone_id')->nullable()->constrained('service_zones')->nullOnDelete();
+            $table->string('region', 100)->nullable();
+            $table->string('postal_code', 20)->nullable();
+            $table->char('country_code', 2);
+            $table->decimal('lat', 10, 7)->nullable();
+            $table->decimal('lng', 10, 7)->nullable();
+            $table->string('place_id', 255)->nullable();
             $table->string('landmark')->nullable();
             $table->timestamps();
         });

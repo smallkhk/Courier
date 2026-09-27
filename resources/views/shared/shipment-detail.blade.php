@@ -6,14 +6,14 @@
             <div>
                 <h2 class="text-xs font-semibold tracking-wide text-ink-500 uppercase">From</h2>
                 <p class="mt-1 font-medium">{{ $shipment->sender_name }}</p>
-                <p class="text-sm text-ink-700">{{ $shipment->pickup_address }}, {{ $shipment->pickup_city }}, {{ $shipment->pickup_state }}</p>
-                <p class="text-sm text-ink-600">{{ $shipment->sender_phone }}</p>
+                <p class="text-sm text-ink-700">{{ $shipment->addressLine('pickup') }}</p>
+                <p class="text-sm text-ink-600">{{ \App\Support\Phone::display($shipment->sender_phone) }}</p>
             </div>
             <div>
                 <h2 class="text-xs font-semibold tracking-wide text-ink-500 uppercase">To</h2>
                 <p class="mt-1 font-medium">{{ $shipment->recipient_name }}</p>
-                <p class="text-sm text-ink-700">{{ $shipment->delivery_address }}, {{ $shipment->delivery_city }}, {{ $shipment->delivery_state }}</p>
-                <p class="text-sm text-ink-600">{{ $shipment->recipient_phone }}</p>
+                <p class="text-sm text-ink-700">{{ $shipment->addressLine('delivery') }}</p>
+                <p class="text-sm text-ink-600">{{ \App\Support\Phone::display($shipment->recipient_phone) }}</p>
             </div>
         </div>
         <section class="card card-body" aria-labelledby="tl">
@@ -43,7 +43,8 @@
             <dl class="mt-3 space-y-2">
                 <div class="flex justify-between gap-2"><dt class="text-ink-500">Service</dt><dd>{{ $shipment->service->name }}</dd></div>
                 <div class="flex justify-between gap-2"><dt class="text-ink-500">Contents</dt><dd class="text-right">{{ $shipment->package_description }}</dd></div>
-                <div class="flex justify-between gap-2"><dt class="text-ink-500">Parcels</dt><dd>{{ $shipment->parcel_count }} · {{ rtrim(rtrim($shipment->chargeable_weight_kg, '0'), '.') }} kg</dd></div>
+                <div class="flex justify-between gap-2"><dt class="text-ink-500">Parcels</dt><dd>{{ $shipment->parcel_count }} · {{ \App\Support\Units::weight($shipment->chargeable_weight_kg) }}</dd></div>
+                @if($shipment->customs)<div class="flex justify-between gap-2"><dt class="text-ink-500">Customs</dt><dd class="text-right">{{ \App\Models\Shipment::CUSTOMS_CONTENTS[$shipment->customs['contents_type']] ?? '' }}<br><span class="text-xs text-ink-500">{{ $shipment->customs['description'] }}</span></dd></div>@endif
                 @if($shipment->estimated_delivery_to && ! $shipment->status->isTerminal())<div class="flex justify-between gap-2"><dt class="text-ink-500">Estimated</dt><dd>{{ $shipment->estimated_delivery_to->format('D j M') }} <span class="text-xs text-ink-500">(estimate)</span></dd></div>@endif
                 <div class="flex justify-between gap-2"><dt class="text-ink-500">Payment</dt><dd class="uppercase">{{ $shipment->payment_method }}</dd></div>
             </dl>

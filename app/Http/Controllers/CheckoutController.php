@@ -78,7 +78,9 @@ class CheckoutController extends Controller
         return match ($payment->status) {
             'successful' => redirect()->route('book.confirmation', $shipment)->with('success', 'Payment confirmed. Your shipment is booked.'),
             'failed', 'cancelled' => redirect()->route('checkout.show', $shipment)->with('error', 'Payment was not completed: '.($payment->failure_reason ?: $payment->status).'. You can try again.'),
-            default => redirect()->route('checkout.show', $shipment)->with('warning', 'We are still waiting for confirmation from the payment provider. This page will update once it is confirmed — you will not be charged twice.'),
+            default => $request->boolean('cancelled')
+                ? redirect()->route('checkout.show', $shipment)->with('status', 'Payment was cancelled. Nothing was charged — you can try again when you\'re ready.')
+                : redirect()->route('checkout.show', $shipment)->with('warning', 'We are still waiting for confirmation from the payment provider. This page will update once it is confirmed — you will not be charged twice.'),
         };
     }
 

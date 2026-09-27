@@ -33,7 +33,7 @@
             <tr>
                 <td>@if($s->isPayable() && $membership->can('create_shipments'))<input type="checkbox" class="checkbox" name="shipments[]" value="{{ $s->tracking_number }}" x-model="selected" aria-label="Select {{ $s->tracking_number }} for payment">@endif</td>
                 <td><a href="{{ route('business.shipments.show', $s) }}" class="font-mono font-semibold">{{ $s->tracking_number }}</a></td>
-                <td>{{ $s->recipient_name }}<div class="text-xs text-ink-500">{{ $s->delivery_city }}, {{ $s->delivery_state }}</div></td>
+                <td>{{ $s->recipient_name }}<div class="text-xs text-ink-500">{{ \App\Support\Countries::flag($s->delivery_country) }} {{ $s->area('delivery') }}</div></td>
                 <td><x-status-badge :status="$s->status" /></td>
                 <td class="text-right"><x-money :amount="$s->total" :currency="$s->currency" /></td>
                 <td class="text-ink-600">{{ $s->created_at->timezone($tz)->format('j M Y') }}</td>

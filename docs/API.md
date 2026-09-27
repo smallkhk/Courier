@@ -20,9 +20,10 @@ number**, never by database ID.
 
 | Method | Path | Notes |
 |---|---|---|
-| GET | `/track/{trackingNumber}` | Rate limited. Returns status, `last_updated_at`, city-level `origin_area`/`destination_area`, `estimated_delivery` (only when the service has a configured estimate, flagged `is_estimate`), customer-safe `events[]`, `support_url`. No addresses, phones, payment data or internal notes. |
-| POST | `/quotes` | Body: `service_id, origin_zone_id, destination_zone_id, parcels[{weight_kg, length_cm?, width_cm?, height_cm?}], declared_value?, insured?, pickup_requested?`. → `201 {id, total, currency, breakdown[], chargeable_weight_kg, expires_at}` |
-| POST | `/webhooks/paystack` | Paystack events. Requires valid `x-paystack-signature` (HMAC-SHA512 of raw body with secret key) → otherwise `401`. Duplicate bodies → `200 {"outcome":"duplicate"}`. Payment state is re-verified with Paystack's API before anything changes. |
+| GET | `/track/{trackingNumber}` | Rate limited. Returns status, `last_updated_at`, city-level `origin_area`/`destination_area` and `origin_country`/`destination_country`, `estimated_delivery` (only when the service has a configured estimate, flagged `is_estimate`), customer-safe `events[]`, `support_url`. No addresses, phones, payment data or internal notes. |
+| POST | `/quotes` | Body: `origin{country, region?, postal_code?, city?}`, `destination{…}`, `service_id`, `units` (`imperial`\|`metric`), `parcels[{weight, length?, width?, height?}]`, `declared_value?`, `insured?`, `pickup_requested?`. Zones are resolved from the locations. → `201 {id, total, currency, breakdown[], chargeable_weight, weight_unit, origin_zone, destination_zone, expires_at}`; `422` if a location isn't served. |
+| POST | `/webhooks/stripe` | Stripe events. Requires a valid `Stripe-Signature` (HMAC-SHA256 of `t.payload` with the endpoint secret, max 5 min old) → otherwise `401`. Duplicate event IDs → `200 {"outcome":"duplicate"}`. The Checkout Session is re-verified with Stripe's API before anything changes. |
+| POST | `/webhooks/paystack` | Paystack events (`x-paystack-signature`, HMAC-SHA512). Same idempotency and re-verification. |
 
 ## Authenticated
 
@@ -30,7 +31,7 @@ number**, never by database ID.
 |---|---|---|---|
 | GET | `/auth/me` | any | Profile, role, business membership |
 | GET | `/shipments` | any | Only shipments the caller may see (own; business per team role; rider's assignments; all for staff). `?status=`, `?per_page=` |
-| POST | `/shipments` | any | Booking detail fields (see `BookingController::detailRules`) + `quote_id`, `payment_method` (`online`/`cod`/`invoice`), `idempotency_key`, `accept_terms`. The quote must match the details. Replaying the same `idempotency_key` returns the existing shipment with `200`. |
+| POST | `/shipments` | any | Booking detail fields (see `ShipmentDetails::rules`): for each of `pickup_`/`delivery_`: `address, address2?, city, region?, postal_code?, country` (ISO-2), `lat?, lng?, place_id?`; contacts (phones validated for the address country, stored E.164); `units`, `parcels[{weight, length?, width?, height?}]`; for cross-border: `customs_contents_type, customs_description, customs_hs_code?` and `declared_value`. Plus `quote_id`, `payment_method` (`online`/`cod`/`invoice`), `idempotency_key`, `accept_terms`. The quote must match the details. Replaying the same `idempotency_key` returns the existing shipment with `200`. |
 | GET | `/shipments/{tn}` | owner/staff | Includes `events[]`; `internal_note` only for staff |
 | POST | `/shipments/{tn}/cancel` | owner/staff | Allowed statuses are configured in settings; paid shipments must be cancelled by staff |
 | POST | `/shipments/{tn}/payment` | owner | Initialise or resume payment → `{reference, checkout_url}` |

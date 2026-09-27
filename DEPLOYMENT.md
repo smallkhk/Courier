@@ -20,8 +20,9 @@ has no Terminal, use SSH (Namecheap: *Advanced → SSH Access*), or run the
 | MySQL / MariaDB database + user | cPanel → *MySQL Databases* |
 | An email account to send from (e.g. `no-reply@yourdomain.com`) | cPanel → *Email Accounts* |
 | SSL certificate | cPanel → *SSL/TLS Status* → *Run AutoSSL* (free) |
-| Paystack account (business verified for live keys) | dashboard.paystack.com |
-| Optional: Termii account + approved Sender ID for SMS | accounts.termii.com |
+| Stripe account (business verified for live payments) | dashboard.stripe.com |
+| Google Maps Platform API key (address search) | console.cloud.google.com |
+| Optional: Twilio account + A2P 10DLC registration for US SMS | console.twilio.com |
 
 ---
 
@@ -118,25 +119,46 @@ chmod -R 775 ~/courier/storage ~/courier/bootstrap/cache
 
 Visit `https://yourdomain.com/health` — you should see `"status":"ok"`.
 
-## 7. Payments — Paystack
+## 7. Payments — Stripe (recommended for US & international)
 
-1. Paystack dashboard → **Settings → API Keys & Webhooks**.
-2. Copy the **Secret** and **Public** keys into `.env` (`PAYSTACK_SECRET_KEY`,
-   `PAYSTACK_PUBLIC_KEY`). Start with **test** keys (`sk_test_…`), place a test
-   booking, then switch to **live** keys.
-3. **Webhook URL**: `https://yourdomain.com/api/webhooks/paystack`
-4. **Callback URL**: not required — the app sends it per transaction
-   (`https://yourdomain.com/payments/callback`).
-5. Set `PAYMENT_PROVIDER=paystack` and run `php artisan config:cache`.
+1. Create/verify your business at dashboard.stripe.com and enable the payment methods you want
+   (cards are on by default; turn on Apple Pay / Google Pay / Link under **Settings → Payment methods**).
+2. **Developers → API keys**: copy the secret and publishable keys into `.env`
+   (`STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`). Start with **test** keys (`sk_test_…`).
+3. **Developers → Webhooks → Add endpoint**: URL `https://yourdomain.com/api/webhooks/stripe`, events:
+   `checkout.session.completed`, `checkout.session.async_payment_succeeded`,
+   `checkout.session.async_payment_failed`, `checkout.session.expired`. Copy the **Signing secret**
+   into `STRIPE_WEBHOOK_SECRET`.
+4. Set `PAYMENT_PROVIDER=stripe`, run `php artisan config:cache`, and place a test booking with
+   card `4242 4242 4242 4242`. Then switch to live keys and a live webhook endpoint.
 
-How it's secured: checkout is initialised server-side; the browser redirect is
-never trusted — every payment is verified with Paystack's *Verify Transaction* API
-(amount, currency and reference must match); webhooks are checked with the
-HMAC-SHA512 `x-paystack-signature` header, de-duplicated, and re-verified with the
-API. Abandoned checkouts are reconciled by the scheduled job.
+How it's secured: Checkout Sessions are created server-side with an idempotency key; the browser
+redirect is never trusted — every payment is verified with Stripe's API (amount, currency and
+reference must match); webhooks are checked against the `Stripe-Signature` HMAC with a 5-minute
+replay window, de-duplicated by event ID, and re-verified with the API. Refunds are issued against
+the PaymentIntent. Abandoned checkouts are reconciled by the scheduled job.
 
-Offline payments (e.g. bank transfer to your account) can be confirmed by an admin
-on the shipment page; this is audit-logged.
+**Sales tax**: pricing rules have a tax % field. US sales tax on shipping varies by state; get advice,
+or enable Stripe Tax separately. **Paystack** remains available (`PAYMENT_PROVIDER=paystack`, webhook
+`https://yourdomain.com/api/webhooks/paystack`) if you also serve African markets.
+
+Offline payments (e.g. bank transfer / ACH to your account) can be confirmed by an admin on the
+shipment page; this is audit-logged.
+
+## 7b. Address search & maps — Google Maps Platform
+
+1. console.cloud.google.com → create a project → enable billing (Google gives a monthly free usage
+   allowance; set a **budget alert** under Billing → Budgets).
+2. **APIs & Services → Library**: enable **Maps JavaScript API** and **Places API (New)**.
+3. **Credentials → Create credentials → API key**, then *Edit*:
+   - Application restrictions: **Websites** → add `https://yourdomain.com/*` (and `https://www.yourdomain.com/*`).
+   - API restrictions: restrict to *Maps JavaScript API* and *Places API (New)*.
+   - Optionally set per-day quotas under each API's *Quotas* page.
+4. Put the key in `.env`: `GOOGLE_MAPS_API_KEY=…` and `ADDRESS_AUTOCOMPLETE=google`.
+
+This is a **browser** key (it is visible in the page by design); the website restriction is what
+protects it. Without a key the site uses OpenStreetMap search (Photon) — fine for testing, but its
+public server is fair-use only. Manual address entry with every country always works.
 
 ## 8. Email
 
@@ -157,16 +179,19 @@ Improve deliverability: cPanel → **Email Deliverability** → make sure SPF an
 show *Valid*. Shared-host SMTP has hourly sending limits; for high volume use a
 transactional provider (Mailgun, Postmark, Brevo…) with its SMTP credentials.
 
-## 9. SMS (optional) — Termii
+## 9. SMS (optional) — Twilio
 
 ```
-SMS_DRIVER=termii
-TERMII_API_KEY=…
-TERMII_SENDER_ID=YourBrand      # must be approved by Termii
+SMS_DRIVER=twilio
+TWILIO_SID=AC…
+TWILIO_AUTH_TOKEN=…
+TWILIO_FROM=+12125550100            # or TWILIO_MESSAGING_SERVICE_SID=MG… (recommended)
 ```
 
-Then enable *Send SMS notifications* in **Admin → System settings**. SMS goes only
-to customers who consented (and to recipients for delivery-day messages).
+US carriers require **A2P 10DLC registration** (or toll-free number verification) before business
+SMS is delivered — complete it in the Twilio Console. Then enable *Send SMS notifications* in
+**Admin → System settings**. SMS goes only to customers who consented (and to recipients for
+delivery-day messages). For Africa you can use `SMS_DRIVER=termii` instead.
 
 ## 10. The cron job (required)
 
@@ -277,10 +302,12 @@ Always take a database dump before running migrations in production.
 - [ ] `APP_ENV=production`, `APP_DEBUG=false`, `APP_URL` uses https
 - [ ] AutoSSL certificate active; http redirects to https (cPanel → *Domains* → Force HTTPS)
 - [ ] `/health` returns ok and scheduler ok
-- [ ] Paystack **live** keys set; webhook URL saved in Paystack; one real low-value payment tested and refunded
+- [ ] Stripe **live** keys and webhook signing secret set; one real low-value payment tested and refunded
+- [ ] Google Maps key restricted to your domain and APIs; budget alert set
 - [ ] Test email received (register a test account); SPF/DKIM valid
-- [ ] SMS tested (if enabled)
-- [ ] Zones, services, pricing rules, branches entered (Admin); DEMO data absent
+- [ ] SMS tested (if enabled); Twilio A2P 10DLC / toll-free verification approved
+- [ ] Coverage zones (countries/states/ZIP prefixes), services, pricing rules, branches entered (Admin); DEMO data absent
+- [ ] Settings reviewed: home country, currency, timezone, units (Admin → System settings)
 - [ ] Terms, privacy and delivery policies replaced with lawyer-reviewed text (Admin → Website content)
 - [ ] Settings reviewed: currency, guest booking, COD, proof rules, retention (Admin → System settings)
 - [ ] Staff accounts created with the right roles; riders created and able to sign in on their phones

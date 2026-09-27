@@ -92,7 +92,7 @@ class DeliveryService
 
         $this->workflow->transition($shipment, ShipmentStatus::Delivered, $actor, [
             'proof' => $proof,
-            'location' => $shipment->delivery_city,
+            'location' => $shipment->area('delivery'),
             'public_description' => 'Delivered. Received by '.self::initials($data['recipient_name']),
             'internal_note' => $data['note'] ?? null,
         ]);
@@ -128,7 +128,7 @@ class DeliveryService
         ]);
 
         $this->workflow->transition($shipment, ShipmentStatus::DeliveryAttempted, $actor, [
-            'location' => $shipment->delivery_city,
+            'location' => $shipment->area('delivery'),
             'public_description' => 'Delivery attempted: '.DeliveryAttempt::REASONS[$data['reason']].'. We will contact you about next steps.',
             'internal_note' => $data['note'] ?? null,
         ]);

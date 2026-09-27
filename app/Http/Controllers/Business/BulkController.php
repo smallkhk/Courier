@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Models\Address;
 use App\Models\BulkImport;
 use App\Models\Service;
-use App\Models\ServiceZone;
 use App\Services\BulkImportService;
 use Illuminate\Http\Request;
 
@@ -18,7 +17,6 @@ class BulkController extends Controller
 
         return view('business.bulk.create', [
             'addresses' => Address::where('business_id', $m->business_id)->get(),
-            'zones' => ServiceZone::where('active', true)->orderBy('name')->get(),
             'services' => Service::where('active', true)->orderBy('sort_order')->get(),
             'recent' => BulkImport::where('business_id', $m->business_id)->latest()->limit(5)->get(),
         ]);

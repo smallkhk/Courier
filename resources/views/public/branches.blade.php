@@ -5,7 +5,7 @@
 @endsection
 @section('content')
 <form method="get" class="mb-6 flex flex-wrap items-end gap-3">
-    <div class="w-full sm:w-64"><x-field name="state" label="Filter by state" type="select" :options="$states->mapWithKeys(fn($s) => [$s => $s])" placeholder="All states" :value="request('state')" /></div>
+    <div class="w-full sm:w-64"><x-field name="country" label="Filter by country" type="select" :options="$countries" placeholder="All countries" :value="request('country')" /></div>
     <button class="btn btn-secondary" type="submit">Apply</button>
 </form>
 @if($branches->isEmpty())
@@ -20,7 +20,7 @@
                     <h2 class="flex items-center gap-3 text-lg"><x-illus name="pin" size="size-10" />{{ $b->name }}</h2>
                     @if($b->is_pickup_point)<x-pill tone="info" icon="package">Pickup point</x-pill>@endif
                 </div>
-                <p class="mt-1 text-ink-700">{{ $b->address }}, {{ $b->city }}, {{ $b->state }}</p>
+                <p class="mt-1 text-ink-700">{{ \App\Support\Countries::flag($b->country_code) }} {{ $b->fullAddress() }}</p>
                 <div class="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm">
                     @if($b->phone)<a href="tel:{{ $b->phone }}" class="inline-flex items-center gap-1"><x-icon name="phone" class="size-4" />{{ $b->phone }}</a>@endif
                     @if($b->email)<a href="mailto:{{ $b->email }}" class="inline-flex items-center gap-1"><x-icon name="mail" class="size-4" />{{ $b->email }}</a>@endif

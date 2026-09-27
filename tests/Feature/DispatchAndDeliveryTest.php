@@ -37,8 +37,8 @@ class DispatchAndDeliveryTest extends TestCase
         $this->customer = $this->user();
         $this->dispatcher = $this->user('dispatcher');
         $this->rider = $this->user('rider');
-        $q = app(PricingService::class)->quote(BookingController::quoteInput($this->bookingPayload()), $this->customer->id);
-        $this->s = app(BookingService::class)->create($this->bookingPayload(), $q, $this->customer, null, 'online', 'd1')['shipment'];
+        $q = app(PricingService::class)->quote(BookingController::quoteInput($this->normalizedPayload()), $this->customer->id);
+        $this->s = app(BookingService::class)->create($this->normalizedPayload(), $q, $this->customer, null, 'online', 'd1')['shipment'];
         app(ShipmentWorkflow::class)->transition($this->s, ShipmentStatus::Booked, null, ['role' => 'system']);
     }
 

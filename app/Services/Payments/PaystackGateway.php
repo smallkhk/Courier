@@ -79,6 +79,19 @@ class PaystackGateway implements PaymentGateway
         return hash_equals(hash_hmac('sha512', $rawBody, $this->secretKey), $sig);
     }
 
+    public function parseWebhook(string $rawBody): array
+    {
+        $p = json_decode($rawBody, true) ?: [];
+        $type = (string) ($p['event'] ?? 'unknown');
+
+        return [
+            'key' => hash('sha256', $rawBody),
+            'type' => $type,
+            'reference' => $p['data']['reference'] ?? null,
+            'settle' => in_array($type, ['charge.success', 'charge.failed'], true),
+        ];
+    }
+
     public function refund(Payment $payment, int $amountMinor, string $reason): array
     {
         $res = $this->http()->post('/refund', [

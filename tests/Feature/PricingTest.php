@@ -45,7 +45,7 @@ class PricingTest extends TestCase
     {
         $this->seedNetwork();
         [$biz] = $this->businessWith();
-        PricingRule::create($this->rule->only(['service_id', 'currency', 'included_weight_kg', 'per_kg_fee', 'extra_parcel_fee', 'min_charge', 'remote_surcharge', 'pickup_surcharge', 'insurance_rate_percent', 'insurance_min_fee', 'tax_rate_percent'])
+        PricingRule::create($this->rule->only(['service_id', 'currency', 'included_weight', 'per_weight_fee', 'extra_parcel_fee', 'min_charge', 'remote_surcharge', 'pickup_surcharge', 'insurance_rate_percent', 'insurance_min_fee', 'tax_rate_percent'])
             + ['name' => 'Negotiated', 'business_id' => $biz->id, 'base_fee' => '500.00']);
         $pub = app(PricingService::class)->quote($this->input());
         $neg = app(PricingService::class)->quote($this->input(), null, $biz);

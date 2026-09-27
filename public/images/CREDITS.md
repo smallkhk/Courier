@@ -6,7 +6,7 @@ Images were resized, cropped and converted to WebP. Replace them with your own b
 
 | File | Title | Creator | License | Source |
 |---|---|---|---|---|
-| `hero-riders.webp` | Moped riders, Asia city traffic | Unknown | CC0 | [rawpixel](https://www.rawpixel.com/image/6032138/photo-image-public-domain-free-city) |
+| `nyc-midtown.webp` | New York City street Midtown | Unknown | CC0 | [rawpixel](https://www.rawpixel.com/image/3300271/free-photo-image-chrysler-building-fence-tudor-city) |
 | `courier-boxes.webp` | CFRS Covid Response | Unknown | CC0 | [rawpixel](https://www.rawpixel.com/image/7433411/cfrs-covid-response) |
 | `loading-parcels.webp` | CFRS Covid Response | Unknown | CC0 | [rawpixel](https://www.rawpixel.com/image/7432551/cfrs-covid-response) |
 | `warehouse-aisle.webp` | Products being kept boxes warehouse | Unknown | CC0 | [rawpixel](https://www.rawpixel.com/image/5904462/photo-image-public-domain-office-free) |

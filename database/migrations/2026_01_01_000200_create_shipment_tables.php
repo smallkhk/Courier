@@ -63,14 +63,26 @@ return new class extends Migration
             $table->string('sender_phone', 32);
             $table->string('sender_email')->nullable();
             $table->string('pickup_address');
+            $table->string('pickup_address2')->nullable();
             $table->string('pickup_city', 100);
-            $table->string('pickup_state', 100);
+            $table->string('pickup_region', 100)->nullable();
+            $table->string('pickup_postal_code', 20)->nullable();
+            $table->char('pickup_country', 2);
+            $table->decimal('pickup_lat', 10, 7)->nullable();
+            $table->decimal('pickup_lng', 10, 7)->nullable();
+            $table->string('pickup_place_id', 255)->nullable();
             $table->string('recipient_name');
             $table->string('recipient_phone', 32);
             $table->string('recipient_email')->nullable();
             $table->string('delivery_address');
+            $table->string('delivery_address2')->nullable();
             $table->string('delivery_city', 100);
-            $table->string('delivery_state', 100);
+            $table->string('delivery_region', 100)->nullable();
+            $table->string('delivery_postal_code', 20)->nullable();
+            $table->char('delivery_country', 2);
+            $table->decimal('delivery_lat', 10, 7)->nullable();
+            $table->decimal('delivery_lng', 10, 7)->nullable();
+            $table->string('delivery_place_id', 255)->nullable();
             $table->text('pickup_instructions')->nullable();
             $table->text('delivery_instructions')->nullable();
 
@@ -81,6 +93,8 @@ return new class extends Migration
             $table->decimal('declared_value', 12, 2)->default(0);
             $table->boolean('insured')->default(false);
             $table->json('special_handling')->nullable();
+            // Cross-border only: {contents_type, description, value, currency, hs_code, origin_country}
+            $table->json('customs')->nullable();
             $table->boolean('pickup_requested')->default(true);
             $table->date('pickup_date')->nullable();
             // morning | afternoon | evening

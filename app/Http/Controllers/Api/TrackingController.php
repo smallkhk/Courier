@@ -23,8 +23,10 @@ class TrackingController extends Controller
             'status' => $s->status->value,
             'status_label' => $s->status->label(),
             'last_updated_at' => $s->status_changed_at?->toIso8601String(),
-            'origin_area' => "{$s->pickup_city}, {$s->pickup_state}",
-            'destination_area' => "{$s->delivery_city}, {$s->delivery_state}",
+            'origin_area' => $s->area('pickup'),
+            'origin_country' => $s->pickup_country,
+            'destination_area' => $s->area('delivery'),
+            'destination_country' => $s->delivery_country,
             'service' => $s->service->name,
             'estimated_delivery' => ($s->estimated_delivery_to && ! $s->status->isTerminal())
                 ? ['from' => $s->estimated_delivery_from?->toDateString(), 'to' => $s->estimated_delivery_to->toDateString(), 'is_estimate' => true] : null,

@@ -48,7 +48,7 @@ final class Money
     public static function format(string|int|float|null $amount, string $currency): string
     {
         $minor = is_int($amount) ? $amount * 100 : self::toMinor($amount);
-        $symbols = ['NGN' => '₦', 'USD' => '$', 'GBP' => '£', 'EUR' => '€', 'GHS' => 'GH₵', 'KES' => 'KSh '];
+        $symbols = ['USD' => '$', 'CAD' => 'CA$', 'AUD' => 'A$', 'GBP' => '£', 'EUR' => '€', 'JPY' => '¥', 'MXN' => 'MX$', 'NGN' => '₦', 'GHS' => 'GH₵', 'KES' => 'KSh ', 'ZAR' => 'R ', 'INR' => '₹'];
         $prefix = $symbols[strtoupper($currency)] ?? strtoupper($currency).' ';
 
         return $prefix.number_format($minor / 100, 2);

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\Countries;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -23,9 +24,14 @@ class Branch extends Model
 
     public function directionsUrl(): string
     {
-        $dest = $this->lat && $this->lng ? "{$this->lat},{$this->lng}" : urlencode("{$this->address}, {$this->city}, {$this->state}");
+        $dest = $this->lat && $this->lng ? "{$this->lat},{$this->lng}" : urlencode($this->fullAddress());
 
         return "https://www.google.com/maps/dir/?api=1&destination={$dest}";
+    }
+
+    public function fullAddress(): string
+    {
+        return collect([$this->address, $this->city, trim($this->region.' '.$this->postal_code), Countries::name($this->country_code)])->filter()->implode(', ');
     }
 
     /** @return list<array{date:string,note:?string}> upcoming closures */

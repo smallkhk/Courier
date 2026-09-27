@@ -42,6 +42,8 @@ class SettingsController extends Controller
         $rules['tracking_prefix'] = 'required|alpha|min:2|max:4';
         $rules['default_currency'] = 'required|alpha|size:3';
         $rules['timezone'] = 'required|timezone';
+        $rules['default_country'] = 'required|alpha|size:2';
+        $rules['measurement_system'] = 'required|in:imperial,metric';
         $data = $request->validate($rules);
 
         $changed = [];
@@ -52,7 +54,7 @@ class SettingsController extends Controller
                 'list' => array_values(array_filter(array_map(fn ($c) => strtoupper(trim($c)), explode(',', (string) ($data[$key] ?? ''))))),
                 default => $data[$key] ?? '',
             };
-            if ($key === 'tracking_prefix' || $key === 'default_currency') {
+            if (in_array($key, ['tracking_prefix', 'default_currency', 'default_country'], true)) {
                 $val = strtoupper($val);
             }
             if (Settings::get($key) !== $val) {

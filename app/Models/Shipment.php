@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use App\Enums\ShipmentStatus;
+use App\Support\Countries;
+use App\Support\Settings;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -45,6 +47,8 @@ class Shipment extends Model
         return [
             'status' => ShipmentStatus::class,
             'special_handling' => 'array',
+            'customs' => 'array',
+            'pickup_lat' => 'float', 'pickup_lng' => 'float', 'delivery_lat' => 'float', 'delivery_lng' => 'float',
             'price_breakdown' => 'array',
             'insured' => 'boolean',
             'pickup_requested' => 'boolean',
@@ -165,6 +169,34 @@ class Shipment extends Model
                 }
             }
         });
+    }
+
+    public const CUSTOMS_CONTENTS = [
+        'merchandise' => 'Merchandise (sold goods)',
+        'gift' => 'Gift',
+        'documents' => 'Documents',
+        'sample' => 'Commercial sample',
+        'return' => 'Returned goods',
+        'personal' => 'Personal effects',
+    ];
+
+    public function isInternational(): bool
+    {
+        return strtoupper((string) $this->pickup_country) !== strtoupper((string) $this->delivery_country);
+    }
+
+    public function addressLine(string $side): string
+    {
+        return collect([$this->{$side.'_address'}, $this->{$side.'_address2'}, $this->{$side.'_city'},
+            trim($this->{$side.'_region'}.' '.$this->{$side.'_postal_code'}), Countries::name($this->{$side.'_country'})])->filter()->implode(', ');
+    }
+
+    /** City-level area, safe for public display (no street address). */
+    public function area(string $side): string
+    {
+        $c = $this->{$side.'_country'};
+
+        return collect([$this->{$side.'_city'}, $this->{$side.'_region'}, strtoupper((string) $c) !== strtoupper((string) Settings::get('default_country')) ? Countries::name($c) : null])->filter()->implode(', ');
     }
 
     public function publicTrackingUrl(): string

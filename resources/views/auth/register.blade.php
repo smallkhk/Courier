@@ -8,7 +8,7 @@
         <x-spam-guard />
         <x-field name="name" label="Full name" required autocomplete="name" />
         <x-field name="email" label="Email" type="email" required autocomplete="email" />
-        <x-field name="phone" label="Phone number" type="tel" required autocomplete="tel" placeholder="0803 000 0000" />
+        <x-field name="phone" label="Phone number" type="tel" required autocomplete="tel" placeholder="+1 212 555 0123" hint="Include the country code if outside the US." />
         <x-field name="password" label="Password" type="password" required autocomplete="new-password" hint="At least 10 characters, with letters and numbers." />
         <x-field name="password_confirmation" label="Confirm password" type="password" required autocomplete="new-password" />
         <label class="flex items-start gap-2 text-sm"><input type="checkbox" name="sms_consent" value="1" class="checkbox mt-0.5" @checked(old('sms_consent'))> Send me shipment updates by SMS</label>

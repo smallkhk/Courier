@@ -9,6 +9,7 @@ use App\Models\Service;
 use App\Models\ServiceZone;
 use App\Support\Money;
 use App\Support\Settings;
+use App\Support\Units;
 use Illuminate\Support\Carbon;
 use Illuminate\Validation\ValidationException;
 
@@ -17,8 +18,9 @@ use Illuminate\Validation\ValidationException;
  * Totals are always computed here, never taken from client input.
  *
  * Formula (all in integer minor units):
- *   chargeable_kg   = Σ max(actual_kg, L×W×H / volumetric_divisor) per parcel
- *   freight         = base_fee + max(0, chargeable_kg − included_kg) × per_kg_fee
+ *   Weights use the rule's unit: lb (dimensions in inches, US divisor ~139) or kg (cm, divisor ~5000).
+ *   chargeable      = Σ max(actual weight, L×W×H / volumetric_divisor) per parcel
+ *   freight         = base_fee + ceil(max(0, chargeable − included)) × per_unit_fee
  *                     + (parcel_count − 1) × extra_parcel_fee
  *   discount        = freight × discount_percent            (negotiated/business rules)
  *   freight_net     = max(min_charge, freight − discount)
@@ -121,25 +123,30 @@ class PricingService
             throw ValidationException::withMessages(['parcels' => 'Add at least one parcel.']);
         }
 
-        // Grams, to keep weight arithmetic exact.
-        $chargeableGrams = 0;
+        // Work in thousandths of the rule's weight unit (lb or kg) to keep arithmetic exact.
+        // Parcels arrive in kg/cm; lb rules convert to lb/inches (US dimensional weight).
+        $lb = $rule->weight_unit === 'lb';
+        $chargeableMilli = 0;
         foreach ($parcels as $p) {
-            $actual = (int) round(((float) $p['weight_kg']) * 1000);
-            $vol = 0;
+            $actual = (float) $p['weight_kg'] / ($lb ? Units::LB_TO_KG : 1);
+            $vol = 0.0;
             if (! empty($p['length_cm']) && ! empty($p['width_cm']) && ! empty($p['height_cm'])) {
-                $vol = (int) round(((float) $p['length_cm'] * (float) $p['width_cm'] * (float) $p['height_cm']) / $divisor * 1000);
+                $f = $lb ? Units::IN_TO_CM : 1;
+                $vol = ((float) $p['length_cm'] / $f) * ((float) $p['width_cm'] / $f) * ((float) $p['height_cm'] / $f) / $divisor;
             }
-            $chargeableGrams += max($actual, $vol);
+            $chargeableMilli += (int) round(max($actual, $vol) * 1000);
         }
         $parcelCount = count($parcels);
 
-        $includedGrams = (int) round(((float) $rule->included_weight_kg) * 1000);
-        $extraGrams = max(0, $chargeableGrams - $includedGrams);
-        // Charge per started kg above the included weight.
-        $extraKgBilled = (int) ceil($extraGrams / 1000);
+        $includedMilli = (int) round(((float) $rule->included_weight) * 1000);
+        $extraMilli = max(0, $chargeableMilli - $includedMilli);
+        // Charge per started unit (lb or kg) above the included weight.
+        $extraKgBilled = (int) ceil($extraMilli / 1000);
+        $unit = $lb ? 'lb' : 'kg';
+        $chargeableGrams = (int) round($chargeableMilli * ($lb ? Units::LB_TO_KG : 1));
 
         $base = Money::toMinor($rule->base_fee);
-        $weightFee = $extraKgBilled * Money::toMinor($rule->per_kg_fee);
+        $weightFee = $extraKgBilled * Money::toMinor($rule->per_weight_fee);
         $parcelFee = max(0, $parcelCount - 1) * Money::toMinor($rule->extra_parcel_fee);
         $freight = $base + $weightFee + $parcelFee;
 
@@ -164,7 +171,7 @@ class PricingService
 
         $lines = array_values(array_filter([
             ['label' => 'Base fee', 'amount' => Money::fromMinor($base)],
-            $weightFee ? ['label' => "Additional weight ({$extraKgBilled} kg)", 'amount' => Money::fromMinor($weightFee)] : null,
+            $weightFee ? ['label' => "Additional weight ({$extraKgBilled} {$unit})", 'amount' => Money::fromMinor($weightFee)] : null,
             $parcelFee ? ['label' => 'Additional parcels ('.($parcelCount - 1).')', 'amount' => Money::fromMinor($parcelFee)] : null,
             $discount ? ['label' => 'Discount ('.rtrim(rtrim((string) $rule->discount_percent, '0'), '.').'%)', 'amount' => Money::fromMinor(-$discount)] : null,
             $minAdjustment ? ['label' => 'Minimum charge adjustment', 'amount' => Money::fromMinor($minAdjustment)] : null,
@@ -177,6 +184,8 @@ class PricingService
         return [
             'lines' => $lines,
             'chargeable_weight_kg' => round($chargeableGrams / 1000, 3),
+            'chargeable_weight' => round($chargeableMilli / 1000, 3),
+            'weight_unit' => $unit,
             'parcel_count' => $parcelCount,
             'subtotal' => Money::fromMinor($subtotal),
             'tax' => Money::fromMinor($tax),

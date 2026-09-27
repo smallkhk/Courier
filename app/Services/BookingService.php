@@ -86,15 +86,12 @@ class BookingService
                         'sender_name' => $details['sender_name'],
                         'sender_phone' => $details['sender_phone'],
                         'sender_email' => $details['sender_email'] ?? null,
-                        'pickup_address' => $details['pickup_address'],
-                        'pickup_city' => $details['pickup_city'],
-                        'pickup_state' => $details['pickup_state'],
                         'recipient_name' => $details['recipient_name'],
                         'recipient_phone' => $details['recipient_phone'],
                         'recipient_email' => $details['recipient_email'] ?? null,
-                        'delivery_address' => $details['delivery_address'],
-                        'delivery_city' => $details['delivery_city'],
-                        'delivery_state' => $details['delivery_state'],
+                        ...self::addressColumns($details, 'pickup'),
+                        ...self::addressColumns($details, 'delivery'),
+                        'customs' => ShipmentDetails::customs($details, $quote->currency),
                         'pickup_instructions' => $details['pickup_instructions'] ?? null,
                         'delivery_instructions' => $details['delivery_instructions'] ?? null,
                         'package_description' => $details['package_description'],
@@ -139,7 +136,7 @@ class BookingService
                         'shipment_id' => $shipment->id,
                         'status' => $initial,
                         'occurred_at' => $now,
-                        'location' => $shipment->pickup_city,
+                        'location' => $shipment->area('pickup'),
                         'public_description' => $initial->publicDescription(),
                         'actor_id' => $user?->id,
                         'source' => $user?->isStaff() ? $user->role : 'customer',
@@ -170,6 +167,18 @@ class BookingService
         }
 
         return ['shipment' => $shipment, 'guest_token' => $guestToken, 'created' => true];
+    }
+
+    /** @return array<string, mixed> address columns for one side (pickup|delivery) */
+    public static function addressColumns(array $d, string $side): array
+    {
+        $out = [];
+        foreach (['address', 'address2', 'city', 'region', 'postal_code', 'country', 'lat', 'lng', 'place_id'] as $f) {
+            $v = $d["{$side}_{$f}"] ?? null;
+            $out["{$side}_{$f}"] = $v === '' ? null : $v;
+        }
+
+        return $out;
     }
 
     public function resolvePaymentMethod(string $requested, ?Business $business): string

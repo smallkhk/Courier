@@ -64,13 +64,13 @@ class ShipmentController extends Controller
         Audit::log('ops.shipments_exported', null, ['filters' => $request->except('_token')]);
         $rows = $this->query($request)->limit(20000)->get()->map(fn ($s) => [
             $s->tracking_number, $s->created_at->toDateTimeString(), $s->status->value, $s->service->name,
-            $s->business?->name ?? $s->user?->name ?? 'Guest', $s->sender_phone, $s->pickup_city,
-            $s->recipient_name, $s->recipient_phone, $s->delivery_city, $s->payment_method, $s->total, $s->currency,
+            $s->business?->name ?? $s->user?->name ?? 'Guest', $s->sender_phone, $s->pickup_city, $s->pickup_country,
+            $s->recipient_name, $s->recipient_phone, $s->delivery_city, $s->delivery_country, $s->payment_method, $s->total, $s->currency,
             $s->activeAssignment?->rider?->name, $s->delivered_at?->toDateTimeString(),
         ]);
 
         return Csv::download('ops-shipments-'.now()->format('Ymd-His').'.csv', [
-            'Tracking', 'Created', 'Status', 'Service', 'Customer', 'Sender phone', 'Pickup city', 'Recipient', 'Recipient phone', 'Delivery city', 'Payment', 'Total', 'Currency', 'Rider', 'Delivered at',
+            'Tracking', 'Created', 'Status', 'Service', 'Customer', 'Sender phone', 'Pickup city', 'Pickup country', 'Recipient', 'Recipient phone', 'Delivery city', 'Delivery country', 'Payment', 'Total', 'Currency', 'Rider', 'Delivered at',
         ], $rows);
     }
 

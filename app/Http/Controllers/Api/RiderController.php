@@ -19,8 +19,8 @@ class RiderController extends Controller
             'id' => $a->id, 'status' => $a->status, 'leg' => $a->leg, 'assigned_at' => $a->assigned_at->toIso8601String(),
             'shipment' => [
                 'tracking_number' => $a->shipment->tracking_number, 'status' => $a->shipment->status->value,
-                'pickup' => ['name' => $a->shipment->sender_name, 'phone' => $a->shipment->sender_phone, 'address' => "{$a->shipment->pickup_address}, {$a->shipment->pickup_city}", 'instructions' => $a->shipment->pickup_instructions],
-                'dropoff' => ['name' => $a->shipment->recipient_name, 'phone' => $a->shipment->recipient_phone, 'address' => "{$a->shipment->delivery_address}, {$a->shipment->delivery_city}", 'instructions' => $a->shipment->delivery_instructions],
+                'pickup' => ['name' => $a->shipment->sender_name, 'phone' => $a->shipment->sender_phone, 'address' => $a->shipment->addressLine('pickup'), 'lat' => $a->shipment->pickup_lat, 'lng' => $a->shipment->pickup_lng, 'instructions' => $a->shipment->pickup_instructions],
+                'dropoff' => ['name' => $a->shipment->recipient_name, 'phone' => $a->shipment->recipient_phone, 'address' => $a->shipment->addressLine('delivery'), 'lat' => $a->shipment->delivery_lat, 'lng' => $a->shipment->delivery_lng, 'instructions' => $a->shipment->delivery_instructions],
             ],
         ])]);
     }

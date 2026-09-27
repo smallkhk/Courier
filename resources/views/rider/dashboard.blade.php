@@ -68,8 +68,8 @@
                     </span>
                 </div>
                 <p class="mt-2 text-sm text-ink-800">
-                    @if($a->leg === 'pickup')<x-icon name="map-pin" class="inline size-4 text-ink-400" /> {{ $s->pickup_address }}, {{ $s->pickup_city }}
-                    @else<x-icon name="navigation" class="inline size-4 text-ink-400" /> {{ $s->delivery_address }}, {{ $s->delivery_city }}@endif
+                    @if($a->leg === 'pickup')<x-icon name="map-pin" class="inline size-4 text-ink-400" /> {{ $s->addressLine('pickup') }}
+                    @else<x-icon name="navigation" class="inline size-4 text-ink-400" /> {{ $s->addressLine('delivery') }}@endif
                 </p>
                 <p class="mt-1 text-xs text-ink-500">{{ $s->parcel_count }} parcel(s) · {{ $s->service->name }} @if($a->status === 'assigned')· <strong class="text-accent-700">New — tap to accept</strong>@endif</p>
             </a>

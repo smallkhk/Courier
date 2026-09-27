@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Shipment;
 use App\Services\Payments\PaymentService;
 use App\Support\Csv;
+use App\Support\Units;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 
@@ -53,12 +54,12 @@ class ShipmentController extends Controller
     {
         $rows = $this->query($request)->limit(10000)->get()->map(fn ($s) => [
             $s->tracking_number, $s->created_at->toDateTimeString(), $s->status->label(), $s->service->name,
-            $s->recipient_name, $s->delivery_city, $s->delivery_state, $s->parcel_count, $s->chargeable_weight_kg,
+            $s->recipient_name, $s->delivery_city, $s->delivery_region, $s->delivery_postal_code, $s->delivery_country, $s->parcel_count, round((float) $s->chargeable_weight_kg / Units::LB_TO_KG, 2), $s->chargeable_weight_kg,
             $s->total, $s->currency, $s->payment_method, $s->delivered_at?->toDateTimeString(),
         ]);
 
         return Csv::download('shipments-'.now()->format('Ymd-His').'.csv',
-            ['Tracking number', 'Created', 'Status', 'Service', 'Recipient', 'City', 'State', 'Parcels', 'Chargeable kg', 'Total', 'Currency', 'Payment method', 'Delivered at'], $rows);
+            ['Tracking number', 'Created', 'Status', 'Service', 'Recipient', 'City', 'State/region', 'Postal code', 'Country', 'Parcels', 'Chargeable lb', 'Chargeable kg', 'Total', 'Currency', 'Payment method', 'Delivered at'], $rows);
     }
 
     /** Pay several pending shipments in one checkout. */

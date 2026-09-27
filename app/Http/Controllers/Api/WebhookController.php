@@ -8,10 +8,10 @@ use Illuminate\Http\Request;
 
 class WebhookController extends Controller
 {
-    /** Paystack webhook: signature-verified, idempotent, re-verified against the API. */
-    public function paystack(Request $request, PaymentService $payments)
+    /** Stripe / Paystack webhooks: signature-verified, idempotent, re-verified against the provider API. */
+    public function handle(Request $request, string $provider, PaymentService $payments)
     {
-        [$status, $outcome] = $payments->handleWebhook('paystack', $request->getContent(), $request->headers->all());
+        [$status, $outcome] = $payments->handleWebhook($provider, $request->getContent(), $request->headers->all());
 
         return response()->json(['received' => $status === 200, 'outcome' => $outcome], $status);
     }

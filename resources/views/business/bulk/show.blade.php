@@ -28,7 +28,7 @@
         <tr class="{{ $r['errors'] ? 'bg-danger-50/50' : ($r['warnings'] ? 'bg-warning-50/50' : '') }}">
             <td>{{ $r['line'] }}</td>
             <td>{{ $r['data']['recipient_name'] ?? '' }}<div class="text-xs text-ink-500">{{ $r['data']['recipient_phone'] ?? '' }}</div></td>
-            <td>{{ $r['data']['delivery_city'] ?? '' }}, {{ $r['data']['delivery_state'] ?? '' }}<div class="text-xs text-ink-500">{{ $r['data']['service_code'] ?? '' }}</div></td>
+            <td>{{ \App\Support\Countries::flag($r['data']['delivery_country'] ?? '') }} {{ collect([$r['data']['delivery_city'] ?? null, $r['data']['delivery_region'] ?? null, $r['data']['delivery_postal_code'] ?? null])->filter()->implode(', ') }}<div class="text-xs text-ink-500">{{ $r['data']['service_code'] ?? '' }}</div></td>
             <td>@if($r['quote'])<x-money :amount="$r['quote']['total']" :currency="$r['quote']['currency']" />@else—@endif</td>
             <td>
                 @if($r['errors'])<x-pill tone="danger" icon="x">Error</x-pill><ul class="mt-1 list-disc pl-4 text-xs text-danger-700">@foreach($r['errors'] as $e)<li>{{ $e }}</li>@endforeach</ul>

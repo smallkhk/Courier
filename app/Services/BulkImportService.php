@@ -2,11 +2,11 @@
 
 namespace App\Services;
 
+use App\Http\Controllers\BookingController;
 use App\Models\Address;
 use App\Models\BulkImport;
 use App\Models\Business;
 use App\Models\Service;
-use App\Models\ServiceZone;
 use App\Models\Shipment;
 use App\Models\User;
 use App\Support\Audit;
@@ -20,20 +20,32 @@ use Illuminate\Validation\ValidationException;
 class BulkImportService
 {
     public const COLUMNS = [
-        'recipient_name', 'recipient_phone', 'recipient_email', 'delivery_address', 'delivery_city', 'delivery_state',
-        'destination_zone_code', 'service_code', 'package_description', 'package_category', 'weight_kg',
-        'length_cm', 'width_cm', 'height_cm', 'declared_value', 'insured', 'delivery_instructions', 'your_reference',
+        'recipient_name', 'recipient_phone', 'recipient_email', 'delivery_address', 'delivery_address2', 'delivery_city',
+        'delivery_region', 'delivery_postal_code', 'delivery_country', 'service_code', 'package_description', 'package_category',
+        'units', 'weight', 'length', 'width', 'height', 'declared_value', 'insured',
+        'customs_contents_type', 'customs_description', 'customs_hs_code', 'delivery_instructions', 'your_reference',
     ];
+
+    public const REQUIRED = ['recipient_name', 'recipient_phone', 'delivery_address', 'delivery_city', 'delivery_country', 'service_code', 'package_description', 'weight'];
 
     public const MAX_ROWS = 500;
 
-    public function __construct(private PricingService $pricing, private BookingService $booking) {}
+    public function __construct(private PricingService $pricing, private BookingService $booking, private ShipmentDetails $details) {}
 
     public function templateCsv(): string
     {
-        $example = ['Ada Obi', '08030000000', 'ada@example.com', '12 Example Street', 'Ikeja', 'Lagos', 'ZONE-CODE', 'SERVICE-CODE', 'Shoes', 'clothing', '1.5', '30', '20', '10', '15000', 'no', 'Call on arrival', 'ORDER-1001'];
+        $rows = [
+            ['Jane Doe', '+1 212 555 0147', 'jane@example.com', '350 5th Ave', 'Apt 12B', 'New York', 'NY', '10118', 'US', 'SERVICE-CODE', 'Sneakers', 'clothing', 'lb', '3.2', '14', '10', '6', '120', 'no', '', '', '', 'Leave with doorman', 'ORDER-1001'],
+            ['Tom Smith', '+44 20 7946 0958', '', '10 Downing St', '', 'London', '', 'SW1A 2AA', 'GB', 'SERVICE-CODE', 'Books', 'other', 'kg', '1.1', '30', '22', '6', '45', 'yes', 'gift', '3 paperback books', '4901.99', '', 'ORDER-1002'],
+        ];
+        $csv = fopen('php://temp', 'r+');
+        fputcsv($csv, self::COLUMNS);
+        foreach ($rows as $r) {
+            fputcsv($csv, $r);
+        }
+        rewind($csv);
 
-        return implode(',', self::COLUMNS)."\n".implode(',', $example)."\n";
+        return stream_get_contents($csv);
     }
 
     public function preview(UploadedFile $file, Business $business, User $user, Address $pickup): BulkImport
@@ -44,12 +56,11 @@ class BulkImportService
             throw ValidationException::withMessages(['file' => 'The file is empty.']);
         }
         $header = array_map(fn ($h) => strtolower(trim(preg_replace('/^\xEF\xBB\xBF/', '', (string) $h))), $header);
-        $missing = array_diff(['recipient_name', 'recipient_phone', 'delivery_address', 'delivery_city', 'delivery_state', 'destination_zone_code', 'service_code', 'package_description', 'weight_kg'], $header);
+        $missing = array_diff(self::REQUIRED, $header);
         if ($missing) {
             throw ValidationException::withMessages(['file' => 'Missing columns: '.implode(', ', $missing).'. Download the template.']);
         }
 
-        $zones = ServiceZone::where('active', true)->get()->keyBy(fn ($z) => strtoupper($z->code));
         $services = Service::where('active', true)->get()->keyBy(fn ($s) => strtoupper($s->code));
         $seen = [];
         $rows = [];
@@ -66,7 +77,7 @@ class BulkImportService
             foreach ($header as $i => $col) {
                 $data[$col] = trim((string) ($raw[$i] ?? ''));
             }
-            $rows[] = $this->validateRow($line, $data, $zones, $services, $business, $pickup, $seen);
+            $rows[] = $this->validateRow($line, $data, $services, $business, $pickup, $seen);
         }
         fclose($handle);
 
@@ -86,40 +97,44 @@ class BulkImportService
         ]);
     }
 
-    private function validateRow(int $line, array $d, $zones, $services, Business $business, Address $pickup, array &$seen): array
+    private function validateRow(int $line, array $d, $services, Business $business, Address $pickup, array &$seen): array
     {
         $errors = [];
         $warnings = [];
-        $v = Validator::make($d, [
-            'recipient_name' => 'required|max:120',
-            'recipient_phone' => ['required', 'regex:/^\+?[0-9 ()-]{7,20}$/'],
-            'recipient_email' => 'nullable|email|max:190',
-            'delivery_address' => 'required|max:250',
-            'delivery_city' => 'required|max:100',
-            'delivery_state' => 'required|max:100',
-            'package_description' => 'required|max:200',
-            'package_category' => 'nullable|in:'.implode(',', array_keys(Shipment::CATEGORIES)),
-            'weight_kg' => 'required|numeric|min:0.01|max:1000',
-            'length_cm' => 'nullable|numeric|min:1|max:500',
-            'width_cm' => 'nullable|numeric|min:1|max:500',
-            'height_cm' => 'nullable|numeric|min:1|max:500',
-            'declared_value' => 'nullable|numeric|min:0|max:100000000',
-            'insured' => 'nullable|in:yes,no,YES,NO,Yes,No,true,false,1,0',
-        ]);
-        $errors = $v->errors()->all();
-
-        $zone = $zones[strtoupper($d['destination_zone_code'] ?? '')] ?? null;
         $service = $services[strtoupper($d['service_code'] ?? '')] ?? null;
-        if (! $zone) {
-            $errors[] = 'Unknown destination_zone_code.';
-        } elseif (! $zone->coversCity($d['delivery_city'] ?? '')) {
-            $errors[] = "City “{$d['delivery_city']}” is not in zone {$zone->code}.";
-        }
+        $units = strtolower($d['units'] ?? '');
+        $form = [
+            'sender_name' => $business->name, 'sender_phone' => $pickup->phone, 'sender_email' => $business->email,
+            'pickup_address' => $pickup->line1, 'pickup_address2' => $pickup->line2, 'pickup_city' => $pickup->city, 'pickup_region' => $pickup->region,
+            'pickup_postal_code' => $pickup->postal_code, 'pickup_country' => $pickup->country_code, 'pickup_lat' => $pickup->lat, 'pickup_lng' => $pickup->lng,
+            'recipient_name' => $d['recipient_name'] ?? '', 'recipient_phone' => $d['recipient_phone'] ?? '', 'recipient_email' => ($d['recipient_email'] ?? '') ?: null,
+            'delivery_address' => $d['delivery_address'] ?? '', 'delivery_address2' => ($d['delivery_address2'] ?? '') ?: null, 'delivery_city' => $d['delivery_city'] ?? '',
+            'delivery_region' => ($d['delivery_region'] ?? '') ?: null, 'delivery_postal_code' => ($d['delivery_postal_code'] ?? '') ?: null,
+            'delivery_country' => strtoupper($d['delivery_country'] ?? ''),
+            'package_description' => $d['package_description'] ?? '', 'package_category' => ($d['package_category'] ?? '') ?: 'other',
+            'units' => in_array($units, ['lb', 'imperial'], true) ? 'imperial' : (in_array($units, ['kg', 'metric'], true) ? 'metric' : null),
+            'parcels' => [array_filter(['weight' => $d['weight'] ?? null, 'length' => ($d['length'] ?? '') ?: null, 'width' => ($d['width'] ?? '') ?: null, 'height' => ($d['height'] ?? '') ?: null], fn ($v) => $v !== null)],
+            'service_id' => $service?->id,
+            'declared_value' => ($d['declared_value'] ?? '') ?: 0,
+            'insured' => in_array(strtolower($d['insured'] ?? ''), ['yes', 'true', '1'], true),
+            'pickup_requested' => true,
+            'customs_contents_type' => ($d['customs_contents_type'] ?? '') ?: null,
+            'customs_description' => ($d['customs_description'] ?? '') ?: null,
+            'customs_hs_code' => ($d['customs_hs_code'] ?? '') ?: null,
+            'delivery_instructions' => trim(($d['delivery_instructions'] ?? '').(($d['your_reference'] ?? '') !== '' ? ' [Ref: '.$d['your_reference'].']' : '')) ?: null,
+        ];
         if (! $service) {
             $errors[] = 'Unknown service_code.';
         }
 
-        $fingerprint = hash('sha256', mb_strtolower(preg_replace('/\D/', '', $d['recipient_phone'] ?? '').'|'.($d['delivery_address'] ?? '').'|'.($d['package_description'] ?? '')));
+        $rules = ShipmentDetails::rules();
+        unset($rules['pickup_date']);
+        $v = Validator::make($form, $rules);
+        $messages = $v->errors();
+        $messages->forget('service_id'); // reported above as "Unknown service_code"
+        $errors = array_merge($errors, $messages->all());
+
+        $fingerprint = hash('sha256', mb_strtolower(preg_replace('/\D/', '', $form['recipient_phone']).'|'.$form['delivery_address'].'|'.$form['delivery_postal_code'].'|'.$form['package_description']));
         if (isset($seen[$fingerprint])) {
             $errors[] = "Duplicate of row {$seen[$fingerprint]} in this file.";
         } else {
@@ -127,38 +142,28 @@ class BulkImportService
         }
 
         $quote = null;
-        $input = null;
+        $normalized = null;
         if (! $errors) {
-            $input = [
-                'service_id' => $service->id,
-                'origin_zone_id' => $pickup->service_zone_id,
-                'destination_zone_id' => $zone->id,
-                'parcels' => [array_filter([
-                    'weight_kg' => $d['weight_kg'],
-                    'length_cm' => $d['length_cm'] ?: null,
-                    'width_cm' => $d['width_cm'] ?: null,
-                    'height_cm' => $d['height_cm'] ?: null,
-                ], fn ($x) => $x !== null)],
-                'declared_value' => $d['declared_value'] ?: 0,
-                'insured' => in_array(strtolower($d['insured'] ?? ''), ['yes', 'true', '1'], true),
-                'pickup_requested' => true,
-            ];
             try {
-                $q = $this->pricing->quote($input, null, $business);
+                $normalized = $this->details->normalize($form);
+                $q = $this->pricing->quote(BookingController::quoteInput($normalized), null, $business);
                 $quote = ['total' => $q->total, 'currency' => $q->currency];
                 $q->delete(); // Preview only; a fresh quote is taken at confirmation.
             } catch (ValidationException $e) {
                 $errors = array_merge($errors, $e->validator->errors()->all());
+                $normalized = null;
             }
+        }
+        if ($normalized) {
             $recent = Shipment::where('business_id', $business->id)->where('created_at', '>=', now()->subDays(7))
-                ->where('recipient_phone', $d['recipient_phone'])->where('delivery_address', $d['delivery_address'])
-                ->where('package_description', $d['package_description'])->exists();
+                ->where('recipient_phone', $normalized['recipient_phone'])->where('delivery_address', $normalized['delivery_address'])
+                ->where('package_description', $normalized['package_description'])->exists();
             if ($recent) {
                 $warnings[] = 'A shipment with the same recipient, address and description was created in the last 7 days.';
             }
         }
 
-        return ['line' => $line, 'data' => $d, 'input' => $input, 'quote' => $quote, 'errors' => $errors, 'warnings' => $warnings];
+        return ['line' => $line, 'data' => $d, 'details' => $normalized, 'quote' => $quote, 'errors' => array_values(array_unique($errors)), 'warnings' => $warnings];
     }
 
     /** @return list<Shipment> */
@@ -167,31 +172,14 @@ class BulkImportService
         if ($import->status !== 'previewed') {
             throw ValidationException::withMessages(['import' => 'This import has already been processed.']);
         }
-        $pickup = Address::where('business_id', $business->id)->findOrFail($import->rows['pickup_address_id']);
         $created = [];
         foreach ($import->rows['items'] as $i => $row) {
-            if ($row['errors'] || ($row['warnings'] && ! $includeWarnings)) {
+            if ($row['errors'] || ! $row['details'] || ($row['warnings'] && ! $includeWarnings)) {
                 continue;
             }
-            $d = $row['data'];
-            $quote = $this->pricing->quote($row['input'], $user->id, $business);
-            $result = $this->booking->create([
-                'sender_name' => $business->name.' — '.$pickup->contact_name,
-                'sender_phone' => $pickup->phone,
-                'sender_email' => $business->email,
-                'pickup_address' => trim($pickup->line1.' '.$pickup->line2),
-                'pickup_city' => $pickup->city,
-                'pickup_state' => $pickup->state,
-                'recipient_name' => $d['recipient_name'],
-                'recipient_phone' => $d['recipient_phone'],
-                'recipient_email' => $d['recipient_email'] ?: null,
-                'delivery_address' => $d['delivery_address'],
-                'delivery_city' => $d['delivery_city'],
-                'delivery_state' => $d['delivery_state'],
-                'delivery_instructions' => trim(($d['delivery_instructions'] ?? '').(($d['your_reference'] ?? '') !== '' ? ' [Ref: '.$d['your_reference'].']' : '')) ?: null,
-                'package_description' => $d['package_description'],
-                'package_category' => $d['package_category'] ?: 'other',
-            ], $quote, $user, $business, 'online', 'bulk:'.$import->id.':'.$i);
+            $d = $this->details->normalize($row['details']); // re-check: zones or rules may have changed since preview
+            $quote = $this->pricing->quote(BookingController::quoteInput($d), $user->id, $business);
+            $result = $this->booking->create($d, $quote, $user, $business, 'online', 'bulk:'.$import->id.':'.$i);
             $created[] = $result['shipment'];
         }
         $import->forceFill(['status' => 'confirmed', 'confirmed_at' => now()])->save();

@@ -40,8 +40,8 @@
         @endif
 
         <div class="grid gap-6 px-5 py-6 sm:px-8 md:grid-cols-3">
-            <div><p class="text-xs font-medium tracking-wide text-ink-500 uppercase">From</p><p class="mt-1 font-medium">{{ $shipment->pickup_city }}, {{ $shipment->pickup_state }}</p></div>
-            <div><p class="text-xs font-medium tracking-wide text-ink-500 uppercase">To</p><p class="mt-1 font-medium">{{ $shipment->delivery_city }}, {{ $shipment->delivery_state }}</p></div>
+            <div><p class="text-xs font-medium tracking-wide text-ink-500 uppercase">From</p><p class="mt-1 font-medium">{{ \App\Support\Countries::flag($shipment->pickup_country) }} {{ $shipment->area('pickup') }}</p></div>
+            <div><p class="text-xs font-medium tracking-wide text-ink-500 uppercase">To</p><p class="mt-1 font-medium">{{ \App\Support\Countries::flag($shipment->delivery_country) }} {{ $shipment->area('delivery') }}</p></div>
             <div>
                 <p class="text-xs font-medium tracking-wide text-ink-500 uppercase">Estimated delivery</p>
                 @if($shipment->status->value === 'delivered')
@@ -75,7 +75,7 @@
                     <h2 class="flex items-center gap-2 text-base"><x-icon name="shield" class="size-4 text-success-600" />Verified details</h2>
                     <dl class="mt-3 space-y-2">
                         <div><dt class="text-ink-500">Recipient</dt><dd>{{ $shipment->recipient_name }}</dd></div>
-                        <div><dt class="text-ink-500">Delivery area</dt><dd>{{ $shipment->delivery_city }}, {{ $shipment->delivery_state }}</dd></div>
+                        <div><dt class="text-ink-500">Delivery area</dt><dd>{{ $shipment->area('delivery') }}</dd></div>
                         <div><dt class="text-ink-500">Service</dt><dd>{{ $shipment->service->name }} · {{ $shipment->parcel_count }} parcel(s)</dd></div>
                     </dl>
                 </div>

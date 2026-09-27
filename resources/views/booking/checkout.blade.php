@@ -16,7 +16,7 @@
                 <button class="btn btn-primary btn-lg w-full" type="submit"><x-icon name="lock" class="size-4" />Pay securely</button>
             </form>
             <p class="mt-3 flex items-center gap-2 text-xs text-ink-500"><x-icon name="shield" class="size-4" />
-                @if($provider === 'sandbox')SANDBOX MODE — you will see a test checkout; no real money moves.@else You'll be redirected to Paystack. We never see or store your card details.@endif
+                @if($provider === 'sandbox')SANDBOX MODE — you will see a test checkout; no real money moves.@else You'll be redirected to {{ $provider === 'stripe' ? 'Stripe' : 'Paystack' }}'s secure checkout{{ $provider === 'stripe' ? ' (card, Apple Pay, Google Pay)' : '' }}. We never see or store your card details.@endif
             </p>
             <p class="mt-3 text-xs text-ink-500">If you already paid and were interrupted, don't pay again — we check with the payment provider automatically. Clicking "Pay securely" again resumes the same payment.</p>
         </div>

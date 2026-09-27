@@ -20,9 +20,9 @@ class BusinessTest extends TestCase
 
     private function shipmentFor($business, $user, string $key): Shipment
     {
-        $q = app(PricingService::class)->quote(BookingController::quoteInput($this->bookingPayload()), $user->id, $business);
+        $q = app(PricingService::class)->quote(BookingController::quoteInput($this->normalizedPayload()), $user->id, $business);
 
-        return app(BookingService::class)->create($this->bookingPayload(), $q, $user, $business, 'online', $key)['shipment'];
+        return app(BookingService::class)->create($this->normalizedPayload(), $q, $user, $business, 'online', $key)['shipment'];
     }
 
     public function test_businesses_cannot_see_each_others_data(): void
@@ -74,12 +74,15 @@ class BusinessTest extends TestCase
     {
         $this->seedNetwork();
         [$biz, $owner] = $this->businessWith();
-        $pickup = Address::forceCreate(['business_id' => $biz->id, 'label' => 'WH', 'contact_name' => 'Desk', 'phone' => '0803', 'line1' => 'x', 'city' => 'Ikeja', 'state' => 'Lagos', 'service_zone_id' => $this->origin->id]);
-        $csv = implode(',', BulkImportService::COLUMNS)."\n"
-            ."Ada,08030000001,,1 A St,Lekki,Lagos,T-B,EXP,Shoes,clothing,1.5,,,,0,no,,R1\n"
-            ."Ada,08030000001,,1 A St,Lekki,Lagos,T-B,EXP,Shoes,clothing,1.5,,,,0,no,,R1\n"   // duplicate
-            ."Bad,08030000002,,2 B St,Kano,Kano,T-B,EXP,Box,other,2,,,,0,no,,R2\n"            // city not in zone
-            ."Cy,08030000003,,3 C St,Lekki,Lagos,T-B,NOPE,Box,other,2,,,,0,no,,R3\n";        // unknown service
+        $pickup = Address::forceCreate(['business_id' => $biz->id, 'label' => 'WH', 'contact_name' => 'Desk', 'phone' => '+12125550100', 'line1' => '5 Warehouse Way', 'city' => 'New York', 'region' => 'NY', 'postal_code' => '10001', 'country_code' => 'US']);
+        $cols = BulkImportService::COLUMNS;
+        $row = fn (array $v) => implode(',', array_map(fn ($c) => $v[$c] ?? '', $cols));
+        $ok = ['recipient_name' => 'Ada', 'recipient_phone' => '+17185550101', 'delivery_address' => '1 A St', 'delivery_city' => 'Brooklyn', 'delivery_region' => 'NY', 'delivery_postal_code' => '11201', 'delivery_country' => 'US', 'service_code' => 'EXP', 'package_description' => 'Shoes', 'package_category' => 'clothing', 'units' => 'lb', 'weight' => '3', 'your_reference' => 'R1'];
+        $csv = implode(',', $cols)."\n"
+            .$row($ok)."\n"
+            .$row($ok)."\n"                                                                                   // duplicate
+            .$row(['delivery_postal_code' => '90210', 'delivery_city' => 'Beverly Hills', 'delivery_region' => 'CA'] + $ok)."\n"  // not served
+            .$row(['service_code' => 'NOPE', 'recipient_phone' => '+17185550103'] + $ok)."\n";                  // unknown service
         $file = UploadedFile::fake()->createWithContent('ship.csv', $csv);
 
         $res = $this->actingAs($owner)->post(route('business.bulk.preview'), ['file' => $file, 'pickup_address_id' => $pickup->id]);

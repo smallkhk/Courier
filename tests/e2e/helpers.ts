@@ -16,25 +16,27 @@ export async function logout(page: Page) {
     await expect(page).toHaveURL(/\/$/);
 }
 
-/** Book a Lagos Mainland → Lagos Island shipment through the UI and return its tracking number. */
+/** Book a Manhattan → Brooklyn shipment through the UI and return its tracking number. */
 export async function bookShipment(page: Page, payOutcome: 'success' | 'failed' = 'success'): Promise<string> {
     await page.goto('/send');
     await page.getByLabel('Sender name').fill('E2E Sender');
-    await page.getByLabel('Sender phone').fill('08031234567');
+    await page.getByLabel('Sender phone').fill('(212) 555-0147');
     await page.getByLabel('Sender email').fill('e2e.sender@example.com');
-    await page.locator('#f_pickup_address').fill('1 Test Street');
-    await page.locator('#f_pickup_city').fill('Ikeja');
-    await page.locator('#f_pickup_state').fill('Lagos');
-    await page.locator('#f_origin_zone_id').selectOption({ label: 'DEMO Lagos Mainland — Lagos' });
+    await page.locator('#pickup_country').selectOption('US');
+    await page.locator('#pickup_address').fill('450 W 33rd St');
+    await page.locator('#pickup_city').fill('New York');
+    await page.locator('#pickup_region').selectOption('NY');
+    await page.locator('#pickup_postal').fill('10001');
     await page.getByLabel('Recipient name').fill('E2E Recipient');
-    await page.getByLabel('Recipient phone').fill('08037654321');
-    await page.locator('#f_delivery_address').fill('9 Island Road');
-    await page.locator('#f_delivery_city').fill('Lekki');
-    await page.locator('#f_delivery_state').fill('Lagos');
-    await page.locator('#f_destination_zone_id').selectOption({ label: 'DEMO Lagos Island — Lagos' });
+    await page.getByLabel('Recipient phone').fill('(718) 555-0148');
+    await page.locator('#delivery_country').selectOption('US');
+    await page.locator('#delivery_address').fill('9 Example Ave');
+    await page.locator('#delivery_city').fill('Brooklyn');
+    await page.locator('#delivery_region').selectOption('NY');
+    await page.locator('#delivery_postal').fill('11201');
     await page.getByLabel('What are you sending?').fill('Documents');
     await page.getByLabel('Category').selectOption('documents');
-    await page.locator('#w0').fill('1.2');
+    await page.locator('#w0').fill('2.5');
     await page.getByLabel('Delivery service').selectOption({ index: 2 });
     await page.getByRole('button', { name: /See price/ }).click();
 

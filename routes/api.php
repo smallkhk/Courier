@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Route;
 | Shipments are addressed by tracking number (never by sequential database ID).
 */
 
-Route::post('/webhooks/paystack', [Api\WebhookController::class, 'paystack'])->name('webhooks.paystack');
+Route::post('/webhooks/{provider}', [Api\WebhookController::class, 'handle'])->whereIn('provider', ['stripe', 'paystack'])->name('webhooks');
 
 Route::middleware('throttle:api')->group(function () {
     Route::get('/track/{tracking}', [Api\TrackingController::class, 'show'])->middleware('throttle:tracking')->name('track');

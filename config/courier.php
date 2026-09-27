@@ -9,8 +9,14 @@
 
 return [
     'payments' => [
-        // paystack | sandbox   ("sandbox" is refused when APP_ENV=production)
+        // stripe | paystack | sandbox   ("sandbox" is refused when APP_ENV=production)
         'provider' => env('PAYMENT_PROVIDER', 'sandbox'),
+        'stripe' => [
+            'secret_key' => env('STRIPE_SECRET_KEY'),
+            'publishable_key' => env('STRIPE_PUBLISHABLE_KEY'),
+            'webhook_secret' => env('STRIPE_WEBHOOK_SECRET'),
+            'base_url' => env('STRIPE_BASE_URL', 'https://api.stripe.com'),
+        ],
         'paystack' => [
             'public_key' => env('PAYSTACK_PUBLIC_KEY'),
             'secret_key' => env('PAYSTACK_SECRET_KEY'),
@@ -21,14 +27,27 @@ return [
     ],
 
     'sms' => [
-        // log | termii
+        // log | twilio | termii
         'driver' => env('SMS_DRIVER', 'log'),
+        'twilio' => [
+            'sid' => env('TWILIO_SID'),
+            'token' => env('TWILIO_AUTH_TOKEN'),
+            'from' => env('TWILIO_FROM'),                          // e.g. +12125550100 (a Twilio number)
+            'messaging_service_sid' => env('TWILIO_MESSAGING_SERVICE_SID'), // recommended for US A2P 10DLC
+        ],
         'termii' => [
             'api_key' => env('TERMII_API_KEY'),
             'sender_id' => env('TERMII_SENDER_ID'),
             'base_url' => env('TERMII_BASE_URL', 'https://api.ng.termii.com'),
             'channel' => env('TERMII_CHANNEL', 'generic'),
         ],
+    ],
+
+    'address_autocomplete' => [
+        // google = Google Places (needs GOOGLE_MAPS_API_KEY), osm = OpenStreetMap/Photon (free, fair use), none = manual entry only.
+        'provider' => env('ADDRESS_AUTOCOMPLETE', env('GOOGLE_MAPS_API_KEY') ? 'google' : 'osm'),
+        'google_key' => env('GOOGLE_MAPS_API_KEY'),   // BROWSER key — restrict to your domain in Google Cloud
+        'osm_url' => env('OSM_AUTOCOMPLETE_URL', 'https://photon.komoot.io/api/'),
     ],
 
     'maps' => [
@@ -50,9 +69,12 @@ return [
         'office_address' => '',
         'whatsapp_number' => env('WHATSAPP_NUMBER', ''),
         'tracking_prefix' => 'CX',
-        'default_currency' => 'NGN',
-        'currencies' => ['NGN'],
-        'timezone' => 'Africa/Lagos',
+        'default_currency' => 'USD',
+        'currencies' => ['USD'],
+        'timezone' => 'America/New_York',
+        'default_country' => 'US',
+        'priority_countries' => ['US', 'CA', 'MX', 'GB'],
+        'measurement_system' => 'imperial',
         'guest_booking_enabled' => true,
         'cod_enabled' => false,
         'quote_validity_minutes' => 30,

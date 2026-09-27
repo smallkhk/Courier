@@ -22,9 +22,9 @@ class NotificationAndLocationTest extends TestCase
     {
         $this->seedNetwork();
         $u = $this->user('customer', ['sms_consent_at' => now()]);
-        $q = app(PricingService::class)->quote(BookingController::quoteInput($this->bookingPayload()), $u->id);
+        $q = app(PricingService::class)->quote(BookingController::quoteInput($this->normalizedPayload()), $u->id);
 
-        return app(BookingService::class)->create($this->bookingPayload(), $q, $u, null, 'online', 'n1')['shipment'];
+        return app(BookingService::class)->create($this->normalizedPayload(), $q, $u, null, 'online', 'n1')['shipment'];
     }
 
     public function test_notifications_are_deduplicated(): void

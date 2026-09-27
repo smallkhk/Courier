@@ -22,6 +22,14 @@ interface PaymentGateway
     /** Validate a webhook signature against the raw request body. */
     public function verifyWebhook(string $rawBody, array $headers): bool;
 
+    /**
+     * Extract what we need from a verified webhook body.
+     *
+     * @return array{key:string, type:string, reference:?string, settle:bool}
+     *                                                                        key: unique event id (for idempotency); settle: whether to re-verify and settle the payment
+     */
+    public function parseWebhook(string $rawBody): array;
+
     /** @return array{status:string, reference:?string, message:?string} status: processed | pending | failed */
     public function refund(Payment $payment, int $amountMinor, string $reason): array;
 }

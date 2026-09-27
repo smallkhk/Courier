@@ -6,15 +6,14 @@ use App\Models\Address;
 use App\Models\Business;
 use App\Models\Quote;
 use App\Models\Service;
-use App\Models\ServiceZone;
 use App\Models\Shipment;
 use App\Services\BookingService;
 use App\Services\PricingService;
+use App\Services\ShipmentDetails;
 use App\Support\Settings;
 use App\Support\ShipmentAccess;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
-use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -23,60 +22,10 @@ use Illuminate\Validation\ValidationException;
  */
 class BookingController extends Controller
 {
+    /** Validation rules for booking details (shared with the API). */
     public static function detailRules(): array
     {
-        $phone = ['required', 'string', 'regex:/^\+?[0-9 ()-]{7,20}$/'];
-
-        return [
-            'sender_name' => 'required|string|max:120',
-            'sender_phone' => $phone,
-            'sender_email' => 'required|email:rfc|max:190',
-            'pickup_address' => 'required|string|max:250',
-            'pickup_city' => 'required|string|max:100',
-            'pickup_state' => 'required|string|max:100',
-            'origin_zone_id' => 'required|integer|exists:service_zones,id',
-            'pickup_instructions' => 'nullable|string|max:500',
-            'recipient_name' => 'required|string|max:120',
-            'recipient_phone' => $phone,
-            'recipient_email' => 'nullable|email:rfc|max:190',
-            'delivery_address' => 'required|string|max:250',
-            'delivery_city' => 'required|string|max:100',
-            'delivery_state' => 'required|string|max:100',
-            'destination_zone_id' => 'required|integer|exists:service_zones,id',
-            'delivery_instructions' => 'nullable|string|max:500',
-            'package_description' => 'required|string|max:200',
-            'package_category' => ['required', Rule::in(array_keys(Shipment::CATEGORIES))],
-            'parcels' => 'required|array|min:1|max:20',
-            'parcels.*.weight_kg' => 'required|numeric|min:0.01|max:1000',
-            'parcels.*.length_cm' => 'nullable|numeric|min:1|max:500',
-            'parcels.*.width_cm' => 'nullable|numeric|min:1|max:500',
-            'parcels.*.height_cm' => 'nullable|numeric|min:1|max:500',
-            'service_id' => 'required|integer|exists:services,id',
-            'declared_value' => 'nullable|numeric|min:0|max:100000000',
-            'insured' => 'nullable|boolean',
-            'special_handling' => 'nullable|array',
-            'special_handling.*' => Rule::in(array_keys(Shipment::HANDLING)),
-            'pickup_requested' => 'nullable|boolean',
-            'pickup_date' => 'nullable|required_if:pickup_requested,1|date|after_or_equal:today|before:+30 days',
-            'pickup_window' => ['nullable', Rule::in(array_keys(Shipment::PICKUP_WINDOWS))],
-        ];
-    }
-
-    /** Validate that addresses fall inside the chosen zones. */
-    public static function assertAddressesInZones(array $d): void
-    {
-        $errors = [];
-        $origin = ServiceZone::find($d['origin_zone_id']);
-        $dest = ServiceZone::find($d['destination_zone_id']);
-        if ($origin && ! $origin->coversCity($d['pickup_city'])) {
-            $errors['pickup_city'] = "“{$d['pickup_city']}” is not in the {$origin->name} coverage area. Check the city or choose another area.";
-        }
-        if ($dest && ! $dest->coversCity($d['delivery_city'])) {
-            $errors['delivery_city'] = "“{$d['delivery_city']}” is not in the {$dest->name} coverage area. Check the city or choose another area.";
-        }
-        if ($errors) {
-            throw ValidationException::withMessages($errors);
-        }
+        return ShipmentDetails::rules();
     }
 
     public static function quoteInput(array $d): array
@@ -120,28 +69,28 @@ class BookingController extends Controller
             ? Address::where('business_id', $business->id)->get()
             : ($user ? $user->addresses()->get() : collect());
 
-        $details = $request->session()->get('booking.details', []);
+        $details = $request->session()->get('booking.form', []);
         if (! $details && $user) {
             $details = ['sender_name' => $user->name, 'sender_phone' => $user->phone, 'sender_email' => $user->email];
         }
 
         return view('booking.start', [
-            'zones' => ServiceZone::where('active', true)->orderBy('state')->orderBy('name')->get(),
             'services' => Service::where('active', true)->orderBy('sort_order')->get(),
-            'addresses' => $addresses,
+            'addresses' => $addresses->map(fn ($a) => ['id' => $a->id, 'label' => $a->label] + $a->toPicker())->values(),
             'details' => $details,
             'business' => $business,
             'membership' => $user?->primaryMembership(),
         ]);
     }
 
-    public function quote(Request $request, PricingService $pricing)
+    public function quote(Request $request, PricingService $pricing, ShipmentDetails $details)
     {
         $d = $request->validate(self::detailRules());
         $d['insured'] = $request->boolean('insured');
         $d['pickup_requested'] = $request->boolean('pickup_requested');
+        $request->session()->put('booking.form', $d); // raw input, to refill the form
+        $d = $details->normalize($d);
         $request->session()->put('booking.details', $d);
-        self::assertAddressesInZones($d);
 
         $quote = $pricing->quote(self::quoteInput($d), $request->user()?->id, self::bookingBusiness($request));
         $request->session()->put('booking.quote_id', $quote->id);
@@ -175,8 +124,6 @@ class BookingController extends Controller
             'd' => $d,
             'quote' => $quote,
             'priceChanged' => $priceChanged,
-            'origin' => ServiceZone::find($d['origin_zone_id']),
-            'destination' => ServiceZone::find($d['destination_zone_id']),
             'business' => self::bookingBusiness($request),
             'codEnabled' => (bool) Settings::get('cod_enabled'),
             'idempotency' => $request->session()->get('booking.idempotency'),
@@ -211,7 +158,7 @@ class BookingController extends Controller
         if ($result['guest_token']) {
             ShipmentAccess::rememberGuest($request, $shipment, $result['guest_token']);
         }
-        $request->session()->forget(['booking.details', 'booking.quote_id', 'booking.idempotency']);
+        $request->session()->forget(['booking.details', 'booking.form', 'booking.quote_id', 'booking.idempotency']);
 
         return $shipment->isPayable()
             ? redirect()->route('checkout.show', $shipment)

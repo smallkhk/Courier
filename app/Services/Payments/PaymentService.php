@@ -228,10 +228,10 @@ class PaymentService
             return [401, 'invalid_signature'];
         }
 
-        $payload = json_decode($rawBody, true) ?: [];
-        $eventType = (string) ($payload['event'] ?? 'unknown');
-        $reference = (string) ($payload['data']['reference'] ?? '');
-        $key = hash('sha256', $rawBody);
+        $event = $gateway->parseWebhook($rawBody);
+        $eventType = $event['type'];
+        $reference = (string) ($event['reference'] ?? '');
+        $key = $event['key'];
 
         try {
             $record = PaymentWebhookEvent::create(['provider' => $provider, 'event_key' => $key, 'event_type' => $eventType, 'reference' => $reference ?: null]);
@@ -240,7 +240,7 @@ class PaymentService
         }
 
         $outcome = 'ignored';
-        if ($reference && in_array($eventType, ['charge.success', 'charge.failed'], true)) {
+        if ($reference && $event['settle']) {
             // Never trust the webhook body alone: re-verify with the provider API.
             $outcome = $this->confirm($reference, 'webhook');
         } elseif ($reference && str_starts_with($eventType, 'refund.')) {

@@ -1,6 +1,10 @@
 @extends('layouts.public')
 @section('title', 'Review your shipment')
 @section('content')
+@php
+    $fmt = fn ($side) => collect([$d[$side.'_address'], $d[$side.'_address2'] ?? null, $d[$side.'_city'], trim(($d[$side.'_region'] ?? '').' '.($d[$side.'_postal_code'] ?? '')), \App\Support\Countries::name($d[$side.'_country'])])->filter()->implode(', ');
+    $intl = $d['pickup_country'] !== $d['delivery_country'];
+@endphp
 <div class="mx-auto max-w-5xl">
     @include('booking._steps', ['current' => 2])
     <x-page-header title="Review & confirm" :back="route('book.start')" />
@@ -11,25 +15,32 @@
                 <div>
                     <h2 class="flex items-center gap-2 text-sm font-semibold tracking-wide text-ink-500 uppercase"><x-icon name="map-pin" class="size-4" />Pickup</h2>
                     <p class="mt-2 font-medium">{{ $d['sender_name'] }}</p>
-                    <p class="text-sm text-ink-700">{{ $d['pickup_address'] }}, {{ $d['pickup_city'] }}, {{ $d['pickup_state'] }}</p>
-                    <p class="text-sm text-ink-600">{{ $d['sender_phone'] }} · {{ $d['sender_email'] }}</p>
+                    <p class="text-sm text-ink-700">{{ $fmt('pickup') }}</p>
+                    <p class="text-sm text-ink-600">{{ \App\Support\Phone::display($d['sender_phone']) }} · {{ $d['sender_email'] }}</p>
                     <p class="mt-2 text-sm">@if($d['pickup_requested'])Collection {{ !empty($d['pickup_date']) ? 'on '.\Illuminate\Support\Carbon::parse($d['pickup_date'])->format('D j M') : '' }} {{ \App\Models\Shipment::PICKUP_WINDOWS[$d['pickup_window'] ?? ''] ?? '' }}@else Drop-off at a branch @endif</p>
                 </div>
                 <div>
                     <h2 class="flex items-center gap-2 text-sm font-semibold tracking-wide text-ink-500 uppercase"><x-icon name="navigation" class="size-4" />Delivery</h2>
                     <p class="mt-2 font-medium">{{ $d['recipient_name'] }}</p>
-                    <p class="text-sm text-ink-700">{{ $d['delivery_address'] }}, {{ $d['delivery_city'] }}, {{ $d['delivery_state'] }}</p>
-                    <p class="text-sm text-ink-600">{{ $d['recipient_phone'] }}</p>
+                    <p class="text-sm text-ink-700">{{ $fmt('delivery') }}</p>
+                    <p class="text-sm text-ink-600">{{ \App\Support\Phone::display($d['recipient_phone']) }}</p>
                 </div>
             </div>
             <div class="card card-body">
                 <h2 class="text-sm font-semibold tracking-wide text-ink-500 uppercase">Package</h2>
                 <dl class="mt-3 grid gap-3 text-sm sm:grid-cols-3">
                     <div><dt class="text-ink-500">Contents</dt><dd>{{ $d['package_description'] }} ({{ \App\Models\Shipment::CATEGORIES[$d['package_category']] }})</dd></div>
-                    <div><dt class="text-ink-500">Parcels</dt><dd>{{ count($d['parcels']) }}</dd></div>
+                    <div><dt class="text-ink-500">Parcels</dt><dd>{{ count($d['parcels']) }} · {{ \App\Support\Units::weight(collect($d['parcels'])->sum('weight_kg'), $d['units']) }}</dd></div>
                     <div><dt class="text-ink-500">Service</dt><dd>{{ $quote->service->name }}</dd></div>
                     @if(!empty($d['special_handling']))<div class="sm:col-span-3"><dt class="text-ink-500">Handling</dt><dd>{{ collect($d['special_handling'])->map(fn($h) => \App\Models\Shipment::HANDLING[$h])->join(', ') }}</dd></div>@endif
                 </dl>
+                @if($intl)
+                    <div class="mt-4 rounded-lg border border-accent-300 bg-accent-50 p-3 text-sm">
+                        <p class="flex items-center gap-2 font-semibold"><x-icon name="globe" class="size-4" />International · customs declaration</p>
+                        <p class="mt-1">{{ \App\Models\Shipment::CUSTOMS_CONTENTS[$d['customs_contents_type']] ?? '' }} — {{ $d['customs_description'] }}@if(!empty($d['customs_hs_code'])) · HS {{ $d['customs_hs_code'] }}@endif</p>
+                        <p class="mt-1 text-ink-600">Import duties and taxes may be charged to the recipient by the destination country.</p>
+                    </div>
+                @endif
                 <p class="mt-4 text-sm text-ink-600">
                     @if($quote->service->transitLabel())Estimated delivery: {{ $quote->service->transitLabel() }} from pickup. Estimates are not guaranteed.@else No delivery-time estimate is available for this service.@endif
                 </p>
@@ -51,7 +62,7 @@
                 @else
                     <div class="space-y-2">
                         <label class="flex items-start gap-3 rounded-lg border border-ink-200 p-3 has-[:checked]:border-brand-500 has-[:checked]:bg-brand-50">
-                            <input type="radio" name="payment_method" value="online" class="mt-1 accent-brand-600" checked> <span><span class="font-medium">Pay online now</span><br><span class="text-xs text-ink-600">Card, bank transfer or USSD via our payment provider.</span></span>
+                            <input type="radio" name="payment_method" value="online" class="mt-1 accent-brand-600" checked> <span><span class="font-medium">Pay online now</span><br><span class="text-xs text-ink-600">Card, Apple Pay or Google Pay through our secure payment provider.</span></span>
                         </label>
                         @if($codEnabled)
                             <label class="flex items-start gap-3 rounded-lg border border-ink-200 p-3 has-[:checked]:border-brand-500 has-[:checked]:bg-brand-50">

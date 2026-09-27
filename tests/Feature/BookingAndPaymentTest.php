@@ -108,8 +108,9 @@ class BookingAndPaymentTest extends TestCase
     public function test_address_outside_zone_is_rejected(): void
     {
         $this->seedNetwork();
-        $this->actingAs($this->user())->post(route('book.quote'), $this->bookingPayload(['delivery_city' => 'Kano']))
-            ->assertSessionHasErrors('delivery_city');
+        // Beverly Hills, CA 90210 is not in any test zone.
+        $this->actingAs($this->user())->post(route('book.quote'), $this->bookingPayload(['delivery_city' => 'Beverly Hills', 'delivery_region' => 'CA', 'delivery_postal_code' => '90210']))
+            ->assertSessionHasErrors('delivery_address');
     }
 
     public function test_customer_cannot_view_someone_elses_checkout(): void

@@ -338,35 +338,18 @@ Alpine.data('signaturePad', () => {
 });
 
 /* Repeating parcel rows in the booking form. */
-Alpine.data('parcels', (initial) => ({
-    rows: initial.length ? initial : [{ weight_kg: '', length_cm: '', width_cm: '', height_cm: '' }],
+Alpine.data('parcels', (initial, units) => ({
+    rows: initial.length ? initial : [{ weight: '', length: '', width: '', height: '' }],
+    units,
     add() {
-        if (this.rows.length < 20) this.rows.push({ weight_kg: '', length_cm: '', width_cm: '', height_cm: '' });
+        if (this.rows.length < 20) this.rows.push({ weight: '', length: '', width: '', height: '' });
     },
     remove(i) {
         if (this.rows.length > 1) this.rows.splice(i, 1);
     },
 }));
 
-/* Fill booking address fields from a saved address. */
-Alpine.data('addressPicker', (addresses, prefix) => ({
-    pick(id) {
-        const a = addresses.find((x) => String(x.id) === String(id));
-        if (!a) return;
-        const set = (name, v) => {
-            const el = document.querySelector(`[name="${name}"]`);
-            if (el) el.value = v ?? '';
-        };
-        const who = prefix === 'pickup' ? 'sender' : 'recipient';
-        set(`${who}_name`, a.contact_name);
-        set(`${who}_phone`, a.phone);
-        set(`${who}_email`, a.email);
-        set(`${prefix}_address`, [a.line1, a.line2].filter(Boolean).join(', '));
-        set(`${prefix}_city`, a.city);
-        set(`${prefix}_state`, a.state);
-        set(prefix === 'pickup' ? 'origin_zone_id' : 'destination_zone_id', a.service_zone_id);
-    },
-}));
+
 
 
 /* ---------------------------------------------------------------
@@ -464,6 +447,199 @@ Alpine.data('backToTop', () => ({
     init() { window.addEventListener('scroll', () => { this.show = window.scrollY > 900; }, { passive: true }); },
     go() { window.scrollTo({ top: 0, behavior: reduceMotion ? 'auto' : 'smooth' }); },
 }));
+
+/* ---------------------------------------------------------------
+ * Worldwide address picker.
+ *  - Google Places API (New) when a browser key is configured,
+ *    with a Google map preview (required by Google's terms);
+ *  - otherwise OpenStreetMap search via Photon, with a Leaflet map;
+ *  - manual entry always available.
+ * ------------------------------------------------------------- */
+let googleLoading = null;
+function loadGoogle(key) {
+    if (window.google?.maps?.importLibrary) return Promise.resolve();
+    if (googleLoading) return googleLoading;
+    googleLoading = new Promise((resolve, reject) => {
+        window.__gmapsReady = resolve;
+        const s = document.createElement('script');
+        s.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}&v=weekly&loading=async&libraries=places&callback=__gmapsReady`;
+        s.async = true;
+        s.onerror = () => reject(new Error('Google Maps failed to load'));
+        document.head.appendChild(s);
+    });
+    return googleLoading;
+}
+
+function parseGoogle(place) {
+    const get = (type, short = false) => {
+        const c = (place.addressComponents || []).find((x) => x.types.includes(type));
+        return c ? (short ? c.shortText : c.longText) : '';
+    };
+    const street = [get('street_number'), get('route')].filter(Boolean).join(' ');
+    return {
+        address: street || get('premise') || (place.formattedAddress || '').split(',')[0],
+        address2: get('subpremise'),
+        city: get('locality') || get('postal_town') || get('sublocality_level_1') || get('sublocality') || get('administrative_area_level_2'),
+        region: get('administrative_area_level_1', true),
+        postal_code: [get('postal_code'), get('postal_code_suffix')].filter(Boolean).join('-'),
+        country: get('country', true),
+        lat: place.location?.lat() ?? null,
+        lng: place.location?.lng() ?? null,
+        place_id: place.id || null,
+    };
+}
+
+Alpine.data('addressField', (cfg) => {
+    let session = null;
+    let map = null;
+    let marker = null;
+    let googlePreds = [];
+    return {
+        provider: cfg.provider,
+        a: { ...cfg.values },
+        query: '',
+        results: [],
+        open: false,
+        active: -1,
+        loading: false,
+        notice: '',
+        id(s) { return `${cfg.prefix}_${s}`; },
+        init() {
+            if (this.provider === 'google' && !cfg.googleKey) this.provider = 'osm';
+            this.$watch('a.lat', () => this.$nextTick(() => this.drawMap()));
+            this.$watch('a.country', (c) => this.$dispatch('country-change', { prefix: cfg.prefix, country: c }));
+            this.$nextTick(() => this.$dispatch('country-change', { prefix: cfg.prefix, country: this.a.country }));
+            if (this.hasPoint()) this.$nextTick(() => this.drawMap());
+        },
+        regionList() { return cfg.regions[this.a.country] || null; },
+        hasPoint() { return this.a.lat !== null && this.a.lat !== '' && this.a.lng !== null && this.a.lng !== ''; },
+        manualEdit() { this.a.place_id = null; },
+        move(d) {
+            if (!this.results.length) return;
+            this.open = true;
+            this.active = (this.active + d + this.results.length) % this.results.length;
+        },
+        async suggest() {
+            const q = this.query.trim();
+            if (q.length < 3) { this.results = []; this.open = false; return; }
+            this.loading = true;
+            try {
+                this.results = this.provider === 'google' ? await this.googleSuggest(q) : await this.osmSuggest(q);
+                this.notice = '';
+            } catch (e) {
+                // Fall back to OpenStreetMap if Google is unavailable (bad key, quota, blocked).
+                if (this.provider === 'google') {
+                    this.provider = 'osm';
+                    this.notice = 'Address search switched to OpenStreetMap.';
+                    try { this.results = await this.osmSuggest(q); } catch { this.results = []; }
+                } else {
+                    this.results = [];
+                    this.notice = 'Address search is unavailable right now — please type the address below.';
+                }
+            } finally {
+                this.loading = false;
+                this.active = this.results.length ? 0 : -1;
+                this.open = true;
+            }
+        },
+        async googleSuggest(q) {
+            await loadGoogle(cfg.googleKey);
+            const { AutocompleteSuggestion, AutocompleteSessionToken } = await google.maps.importLibrary('places');
+            session ||= new AutocompleteSessionToken();
+            const { suggestions } = await AutocompleteSuggestion.fetchAutocompleteSuggestions({ input: q, sessionToken: session });
+            googlePreds = suggestions.filter((s) => s.placePrediction).map((s) => s.placePrediction);
+            return googlePreds.map((p, i) => ({ i, main: p.mainText?.text || p.text.text, secondary: p.secondaryText?.text || '' }));
+        },
+        async osmSuggest(q) {
+            const url = new URL(cfg.osmUrl);
+            url.searchParams.set('q', q);
+            url.searchParams.set('limit', '6');
+            url.searchParams.set('lang', 'en');
+            const res = await fetch(url, { headers: { Accept: 'application/json' } });
+            if (!res.ok) throw new Error('search failed');
+            const data = await res.json();
+            return (data.features || []).map((f) => {
+                const p = f.properties;
+                const street = [p.housenumber, p.street].filter(Boolean).join(' ');
+                const main = street || p.name || '';
+                const cc = (p.countrycode || '').toUpperCase();
+                return {
+                    main,
+                    secondary: [p.city || p.town || p.village || p.county, p.state, p.postcode, p.country].filter(Boolean).join(', '),
+                    value: {
+                        address: street || p.name || '', address2: '',
+                        city: p.city || p.town || p.village || p.district || p.county || '',
+                        region: this.toRegionCode(cc, p.state || ''),
+                        postal_code: p.postcode || '', country: cc,
+                        lat: f.geometry.coordinates[1], lng: f.geometry.coordinates[0], place_id: null,
+                    },
+                };
+            }).filter((r) => r.main);
+        },
+        toRegionCode(country, name) {
+            const list = cfg.regions[country];
+            if (!list || !name) return name;
+            const hit = Object.entries(list).find(([code, n]) => n.toLowerCase() === name.toLowerCase() || code === name.toUpperCase());
+            return hit ? hit[0] : name;
+        },
+        async pick(n) {
+            const r = this.results[n];
+            if (!r) return;
+            this.open = false;
+            let value = r.value;
+            if (this.provider === 'google') {
+                this.loading = true;
+                try {
+                    const place = googlePreds[r.i].toPlace();
+                    await place.fetchFields({ fields: ['addressComponents', 'location', 'formattedAddress', 'id'] });
+                    value = parseGoogle(place);
+                    session = null; // a session ends when a place is selected
+                } finally {
+                    this.loading = false;
+                }
+            }
+            Object.assign(this.a, value);
+            if (this.regionList()) this.a.region = this.toRegionCode(this.a.country, this.a.region);
+            this.query = [r.main, r.secondary].filter(Boolean).join(', ');
+            if (!this.a.address) this.notice = 'Please add the street address and number.';
+            this.$nextTick(() => document.getElementById(this.id('address2'))?.focus());
+        },
+        useSaved(id) {
+            const s = cfg.saved.find((x) => String(x.id) === String(id));
+            if (!s) return;
+            Object.assign(this.a, { address: s.line1, address2: s.line2 || '', city: s.city, region: s.region || '', postal_code: s.postal_code || '', country: s.country, lat: s.lat, lng: s.lng, place_id: s.place_id });
+            const who = cfg.prefix === 'pickup' ? 'sender' : 'recipient';
+            const set = (name, v) => { const el = document.querySelector(`[name="${name}"]`); if (el && v) el.value = v; };
+            set(`${who}_name`, s.contact_name);
+            set(`${who}_phone`, s.phone);
+            set(`${who}_email`, s.email);
+        },
+        async drawMap() {
+            if (!this.hasPoint() || !this.$refs.map) return;
+            const pos = { lat: Number(this.a.lat), lng: Number(this.a.lng) };
+            if (this.provider === 'google' && window.google?.maps) {
+                const { Map } = await google.maps.importLibrary('maps');
+                const { Marker } = await google.maps.importLibrary('marker');
+                if (!map) {
+                    map = new Map(this.$refs.map, { center: pos, zoom: 17, disableDefaultUI: true, zoomControl: true, gestureHandling: 'cooperative' });
+                    marker = new Marker({ map, position: pos, draggable: true, title: 'Drag to adjust' });
+                    marker.addListener('dragend', () => { const p = marker.getPosition(); this.a.lat = p.lat(); this.a.lng = p.lng(); });
+                } else { map.setCenter(pos); marker.setPosition(pos); }
+                return;
+            }
+            if (!map) {
+                map = L.map(this.$refs.map, { scrollWheelZoom: false }).setView([pos.lat, pos.lng], 16);
+                L.tileLayer(cfg.tileUrl, { attribution: cfg.attribution, maxZoom: 19 }).addTo(map);
+                marker = L.marker([pos.lat, pos.lng], { draggable: true, title: 'Drag to adjust' }).addTo(map);
+                marker.on('dragend', () => { const p = marker.getLatLng(); this.a.lat = p.lat; this.a.lng = p.lng; });
+                setTimeout(() => map.invalidateSize(), 50);
+            } else {
+                map.setView([pos.lat, pos.lng], 16);
+                marker.setLatLng([pos.lat, pos.lng]);
+            }
+        },
+    };
+});
 
 window.Alpine = Alpine;
 Alpine.start();

@@ -206,8 +206,8 @@ class NotificationService
             'recipient_name' => $shipment->recipient_name,
             'status' => $shipment->status->label(),
             'status_description' => $event?->public_description ?? $shipment->status->publicDescription(),
-            'destination_city' => $shipment->delivery_city,
-            'origin_city' => $shipment->pickup_city,
+            'destination_city' => $shipment->area('delivery'),
+            'origin_city' => $shipment->area('pickup'),
             'total' => Money::format($shipment->total, $shipment->currency),
             'estimated_delivery' => $shipment->estimated_delivery_to?->format('D j M Y') ?? 'to be confirmed',
         ];

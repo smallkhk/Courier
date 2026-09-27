@@ -3,7 +3,9 @@
 @section('content')
 @php
     $isPickup = $a->leg === 'pickup';
-    $addr = $isPickup ? "{$s->pickup_address}, {$s->pickup_city}, {$s->pickup_state}" : "{$s->delivery_address}, {$s->delivery_city}, {$s->delivery_state}";
+    $side = $isPickup ? 'pickup' : 'delivery';
+    $addr = $s->addressLine($side);
+    $navDest = $s->{$side.'_lat'} ? $s->{$side.'_lat'}.','.$s->{$side.'_lng'} : urlencode($addr);
     $contactName = $isPickup ? $s->sender_name : $s->recipient_name;
     $contactPhone = $isPickup ? $s->sender_phone : $s->recipient_phone;
     $instructions = $isPickup ? $s->pickup_instructions : $s->delivery_instructions;
@@ -33,10 +35,11 @@
         @if($instructions)<p class="mt-2 rounded bg-ink-50 p-2 text-sm"><strong>Instructions:</strong> {{ $instructions }}</p>@endif
         @if($s->special_handling)<p class="mt-2 flex flex-wrap gap-1">@foreach($s->special_handling as $h)<x-pill tone="warning" icon="alert">{{ \App\Models\Shipment::HANDLING[$h] ?? $h }}</x-pill>@endforeach</p>@endif
         <div class="mt-4 grid grid-cols-2 gap-2">
-            <a href="tel:{{ $contactPhone }}" class="btn btn-secondary"><x-icon name="phone" class="size-4" />Call</a>
-            <a href="https://www.google.com/maps/dir/?api=1&destination={{ urlencode($addr) }}" target="_blank" rel="noopener" class="btn btn-secondary"><x-icon name="navigation" class="size-4" />Navigate</a>
+            <a href="tel:{{ $contactPhone }}" class="btn btn-secondary"><x-icon name="phone" class="size-4" />Call {{ \App\Support\Phone::display($contactPhone) }}</a>
+            <a href="https://www.google.com/maps/dir/?api=1&destination={{ $navDest }}" target="_blank" rel="noopener" class="btn btn-secondary"><x-icon name="navigation" class="size-4" />Navigate</a>
         </div>
-        <p class="mt-3 text-sm text-ink-600">{{ $s->parcel_count }} parcel(s), {{ rtrim(rtrim($s->chargeable_weight_kg, '0'), '.') }} kg · {{ $s->package_description }}</p>
+        <p class="mt-3 text-sm text-ink-600">{{ $s->parcel_count }} parcel(s), {{ \App\Support\Units::weight($s->chargeable_weight_kg) }} · {{ $s->package_description }}</p>
+        @if($s->isInternational())<p class="mt-2"><x-pill tone="accent" icon="globe">International — customs paperwork travels with the parcel</x-pill></p>@endif
         @if($s->payment_method === 'cod')<p class="mt-2 rounded border border-accent-300 bg-accent-50 p-2 text-sm font-semibold text-accent-800">Collect cash: <x-money :amount="$s->cod_amount" :currency="$s->currency" /></p>@endif
     </section>
 

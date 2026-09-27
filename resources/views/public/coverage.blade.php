@@ -1,14 +1,14 @@
 @extends('layouts.public')
 @section('title', 'Coverage areas')
 @section('hero')
-<x-photo-hero image="highway" eyebrow="Coverage" icon="globe" title="Where we pick up and deliver" subtitle="Routes are checked again automatically when you book.">
+<x-photo-hero image="highway" eyebrow="Coverage" icon="globe" title="Where we pick up and deliver" subtitle="Local, nationwide and international routes. Your address is checked automatically when you book.">
     <a href="{{ route('branches') }}" class="btn btn-on-dark btn-lg"><x-icon name="map-pin" class="size-4" />Branches &amp; pickup points</a>
 </x-photo-hero>
 @endsection
 @section('content')
-@forelse($zones as $state => $list)
+@forelse($zones as $country => $list)
     <section class="mb-10" data-reveal>
-        <h2 class="mb-4 flex items-center gap-2 text-xl"><x-icon name="map-pin" class="size-5 text-brand-600" />{{ $state }}</h2>
+        <h2 class="mb-4 flex items-center gap-2 text-xl">@php $cc = $list->first()->country_code; @endphp<span class="text-2xl" aria-hidden="true">{{ $cc ? \App\Support\Countries::flag($cc) : '🌍' }}</span>{{ $country }}</h2>
         <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             @foreach($list as $z)
                 <div class="card card-body hover-lift">
@@ -20,7 +20,7 @@
                         <li class="flex items-center gap-2">@if($z->pickup_enabled)<x-icon name="check" class="size-4 text-success-600" />Pickup available @else<x-icon name="x" class="size-4 text-danger-600" />No pickup — drop off at a branch @endif</li>
                         <li class="flex items-center gap-2">@if($z->delivery_enabled)<x-icon name="check" class="size-4 text-success-600" />Delivery available @else<x-icon name="x" class="size-4 text-danger-600" />Delivery unavailable @endif</li>
                     </ul>
-                    @if($z->cities)<p class="mt-3 text-sm text-ink-600"><strong>Areas:</strong> {{ implode(', ', $z->cities) }}</p>@endif
+                    <p class="mt-3 text-sm text-ink-600"><strong>Covers:</strong> {{ $z->coverageSummary() }}</p>
                     @if($z->services->isNotEmpty())<p class="mt-2 text-xs text-ink-500">Services: {{ $z->services->pluck('name')->join(', ') }}</p>@endif
                 </div>
             @endforeach

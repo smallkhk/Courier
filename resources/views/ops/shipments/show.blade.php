@@ -10,22 +10,23 @@
     <div class="space-y-6">
         <div class="card card-body grid gap-6 text-sm break-words md:grid-cols-3 [&>div]:min-w-0 [overflow-wrap:anywhere]">
             <div><h2 class="text-xs font-semibold tracking-wide text-ink-500 uppercase">Sender / pickup</h2>
-                <p class="mt-1 font-medium">{{ $s->sender_name }}</p><p>{{ $s->pickup_address }}, {{ $s->pickup_city }}, {{ $s->pickup_state }}</p>
-                <p><a href="tel:{{ $s->sender_phone }}">{{ $s->sender_phone }}</a> · {{ $s->sender_email }}</p>
+                <p class="mt-1 font-medium">{{ $s->sender_name }}</p><p>{{ $s->addressLine('pickup') }}</p>@if($s->pickup_lat)<a class="text-xs" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query={{ $s->pickup_lat }},{{ $s->pickup_lng }}">Open pin in maps</a>@endif
+                <p><a href="tel:{{ $s->sender_phone }}">{{ \App\Support\Phone::display($s->sender_phone) }}</a> · {{ $s->sender_email }}</p>
                 <p class="text-ink-500">Zone: {{ $s->originZone->name }}</p>
                 @if($s->pickup_requested)<p class="mt-1">Pickup {{ $s->pickup_date?->format('D j M') }} {{ \App\Models\Shipment::PICKUP_WINDOWS[$s->pickup_window] ?? '' }}</p>@else<p class="mt-1">Branch drop-off</p>@endif
                 @if($s->pickup_instructions)<p class="mt-1 rounded bg-ink-50 p-2">{{ $s->pickup_instructions }}</p>@endif
             </div>
             <div><h2 class="text-xs font-semibold tracking-wide text-ink-500 uppercase">Recipient / delivery</h2>
-                <p class="mt-1 font-medium">{{ $s->recipient_name }}</p><p>{{ $s->delivery_address }}, {{ $s->delivery_city }}, {{ $s->delivery_state }}</p>
-                <p><a href="tel:{{ $s->recipient_phone }}">{{ $s->recipient_phone }}</a> {{ $s->recipient_email ? '· '.$s->recipient_email : '' }}</p>
+                <p class="mt-1 font-medium">{{ $s->recipient_name }}</p><p>{{ $s->addressLine('delivery') }}</p>@if($s->delivery_lat)<a class="text-xs" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query={{ $s->delivery_lat }},{{ $s->delivery_lng }}">Open pin in maps</a>@endif
+                <p><a href="tel:{{ $s->recipient_phone }}">{{ \App\Support\Phone::display($s->recipient_phone) }}</a> {{ $s->recipient_email ? '· '.$s->recipient_email : '' }}</p>
                 <p class="text-ink-500">Zone: {{ $s->destinationZone->name }}</p>
                 @if($s->delivery_instructions)<p class="mt-1 rounded bg-ink-50 p-2">{{ $s->delivery_instructions }}</p>@endif
             </div>
             <div><h2 class="text-xs font-semibold tracking-wide text-ink-500 uppercase">Account & package</h2>
                 <p class="mt-1">@if($s->business)<a href="{{ route('ops.businesses.show', $s->business) }}">{{ $s->business->name }}</a>@elseif($s->user)<a href="{{ route('ops.customers.show', $s->user) }}">{{ $s->user->name }}</a>@else Guest @endif</p>
                 <p>{{ $s->package_description }} ({{ \App\Models\Shipment::CATEGORIES[$s->package_category] ?? $s->package_category }})</p>
-                <p>{{ $s->parcel_count }} parcel(s) · {{ rtrim(rtrim($s->chargeable_weight_kg,'0'),'.') }} kg chargeable</p>
+                <p>{{ $s->parcel_count }} parcel(s) · {{ \App\Support\Units::weight($s->chargeable_weight_kg) }} chargeable</p>
+                @if($s->customs)<div class="mt-2 rounded bg-accent-50 p-2 text-xs"><strong>Customs:</strong> {{ \App\Models\Shipment::CUSTOMS_CONTENTS[$s->customs['contents_type']] ?? '' }} — {{ $s->customs['description'] }} · value <x-money :amount="$s->customs['value']" :currency="$s->customs['currency']" />@if($s->customs['hs_code']) · HS {{ $s->customs['hs_code'] }}@endif</div>@endif
                 @if($s->special_handling)<p class="mt-1 flex flex-wrap gap-1">@foreach($s->special_handling as $h)<x-pill tone="warning">{{ \App\Models\Shipment::HANDLING[$h] ?? $h }}</x-pill>@endforeach</p>@endif
                 @if($s->insured)<p>Insured · declared <x-money :amount="$s->declared_value" :currency="$s->currency" /></p>@endif
             </div>
@@ -91,7 +92,7 @@
             <button type="button" class="flex w-full justify-between text-left font-semibold" @click="open=!open" :aria-expanded="open.toString()">Record delivery (staff) <x-icon name="chevron-down" class="size-5" /></button>
             <div x-show="open" x-cloak class="space-y-3">
                 <x-field name="recipient_name" label="Received by" required />
-                <x-field name="note" label="How was it verified?" required hint="e.g. Collected at Ikeja branch, ID checked." />
+                <x-field name="note" label="How was it verified?" required hint="e.g. Collected at the Manhattan hub, photo ID checked." />
                 @if($s->payment_method === 'cod')<x-field name="cod_amount_collected" label="Cash collected" type="number" step="0.01" required :value="$s->cod_amount" />@endif
                 <button class="btn btn-primary w-full" type="submit">Mark delivered</button>
             </div>

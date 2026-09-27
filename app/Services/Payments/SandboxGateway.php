@@ -51,6 +51,11 @@ class SandboxGateway implements PaymentGateway
         return false; // The sandbox never receives webhooks.
     }
 
+    public function parseWebhook(string $rawBody): array
+    {
+        return ['key' => hash('sha256', $rawBody), 'type' => 'none', 'reference' => null, 'settle' => false];
+    }
+
     public function refund(Payment $payment, int $amountMinor, string $reason): array
     {
         return ['status' => 'processed', 'reference' => 'SBX-RF-'.$payment->id.'-'.time(), 'message' => 'Sandbox refund (no money moved)'];

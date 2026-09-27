@@ -26,8 +26,8 @@ class PaystackWebhookTest extends TestCase
         parent::setUp();
         $this->seedNetwork();
         $user = $this->user();
-        $quote = app(PricingService::class)->quote(BookingController::quoteInput($this->bookingPayload()), $user->id);
-        $this->shipment = app(BookingService::class)->create($this->bookingPayload(), $quote, $user, null, 'online', 'k1')['shipment'];
+        $quote = app(PricingService::class)->quote(BookingController::quoteInput($this->normalizedPayload()), $user->id);
+        $this->shipment = app(BookingService::class)->create($this->normalizedPayload(), $quote, $user, null, 'online', 'k1')['shipment'];
         $this->payment = Payment::create([
             'user_id' => $user->id, 'provider' => 'paystack', 'reference' => 'PAY-TEST-1', 'amount' => $this->shipment->total,
             'currency' => 'NGN', 'status' => 'pending', 'payer_email' => $user->email, 'expires_at' => now()->addHour(),

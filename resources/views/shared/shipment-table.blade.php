@@ -14,7 +14,7 @@
     @foreach($shipments as $s)
         <tr>
             <td><a href="{{ route($showRoute, $s) }}" class="font-mono font-semibold">{{ $s->tracking_number }}</a><div class="text-xs text-ink-500">{{ $s->recipient_name }}</div></td>
-            <td class="whitespace-nowrap">{{ $s->pickup_city }} <span aria-hidden="true">→</span><span class="sr-only">to</span> {{ $s->delivery_city }}<div class="text-xs text-ink-500">{{ $s->service?->name }}</div></td>
+            <td class="whitespace-nowrap">{{ \App\Support\Countries::flag($s->pickup_country) }} {{ $s->pickup_city }} <span aria-hidden="true">→</span><span class="sr-only">to</span> {{ \App\Support\Countries::flag($s->delivery_country) }} {{ $s->delivery_city }}<div class="text-xs text-ink-500">{{ $s->service?->name }}</div></td>
             @if(!empty($showOwner))<td>{{ $s->business?->name ?? $s->user?->name ?? 'Guest: '.$s->sender_name }}</td>@endif
             <td><x-status-badge :status="$s->status" /></td>
             <td class="text-right whitespace-nowrap"><x-money :amount="$s->total" :currency="$s->currency" /><div class="text-xs text-ink-500 uppercase">{{ $s->payment_method }}</div></td>

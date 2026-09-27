@@ -15,16 +15,16 @@ test.describe.serial('courier end-to-end', () => {
         await page.getByRole('button', { name: 'Track', exact: true }).click();
         await expect(page.getByRole('heading', { name: 'Shipment history' })).toBeVisible();
         await expect(page.getByRole('list', { name: 'Shipment timeline' }).getByText('Payment received. Shipment confirmed and booked.')).toBeVisible();
-        await expect(page.getByText('9 Island Road')).toHaveCount(0); // private address never public
+        await expect(page.getByText('9 Example Ave')).toHaveCount(0); // private address never public
     });
 
     test('dispatcher assigns a rider', async ({ page }) => {
         await login(page, 'dispatcher@example.com');
         await page.goto(`/ops/shipments/${tracking}`);
-        await selectByText(page, 'Assign to', 'Demo Rider One');
+        await selectByText(page, 'Assign to', 'Demo Courier One');
         await page.getByLabel('Leg').selectOption('delivery');
         await page.getByRole('button', { name: 'Assign', exact: true }).click();
-        await expect(page.getByText('Assigned to Demo Rider One.')).toBeVisible();
+        await expect(page.getByText('Assigned to Demo Courier One.')).toBeVisible();
     });
 
     test('rider updates status and submits proof of delivery', async ({ page }) => {
@@ -90,7 +90,7 @@ test.describe.serial('courier end-to-end', () => {
 
         await login(page, 'dispatcher@example.com');
         await page.goto(`/ops/shipments/${tn}`);
-        await selectByText(page, 'Assign to', 'Demo Rider One');
+        await selectByText(page, 'Assign to', 'Demo Courier One');
         await page.getByLabel('Leg').selectOption('delivery');
         await page.getByRole('button', { name: 'Assign', exact: true }).click();
         await logout(page);

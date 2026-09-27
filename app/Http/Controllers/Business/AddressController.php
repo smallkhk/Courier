@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Business;
 use App\Http\Controllers\Account\AddressController as Base;
 use App\Http\Controllers\Controller;
 use App\Models\Address;
-use App\Models\ServiceZone;
 use Illuminate\Http\Request;
 
 class AddressController extends Controller
@@ -15,8 +14,7 @@ class AddressController extends Controller
         $m = $request->attributes->get('membership');
 
         return view('account.addresses', [
-            'addresses' => Address::where('business_id', $m->business_id)->with('zone')->orderBy('label')->get(),
-            'zones' => ServiceZone::where('active', true)->orderBy('name')->get(),
+            'addresses' => Address::where('business_id', $m->business_id)->orderBy('label')->get(),
             'action' => route('business.addresses.store'),
             'portal' => 'business',
         ]);
@@ -24,7 +22,7 @@ class AddressController extends Controller
 
     public function store(Request $request)
     {
-        $a = new Address($request->validate(Base::rules()));
+        $a = new Address(Base::attributesFrom($request));
         $a->business_id = $request->attributes->get('membership')->business_id;
         $a->save();
 

@@ -9,6 +9,7 @@ use App\Http\Resources\ShipmentResource;
 use App\Models\Quote;
 use App\Models\Shipment;
 use App\Services\BookingService;
+use App\Services\ShipmentDetails;
 use App\Services\ShipmentWorkflow;
 use App\Support\Settings;
 use Illuminate\Http\Request;
@@ -30,7 +31,7 @@ class ShipmentController extends Controller
      * Book from a quote. Body: all booking detail fields + quote_id + payment_method + idempotency_key + accept_terms.
      * The price comes from the stored quote; details must match the quote's inputs.
      */
-    public function store(Request $request, BookingService $booking)
+    public function store(Request $request, BookingService $booking, ShipmentDetails $details)
     {
         $d = $request->validate(BookingController::detailRules() + [
             'quote_id' => 'required|uuid',
@@ -38,7 +39,7 @@ class ShipmentController extends Controller
             'idempotency_key' => 'required|string|max:64',
             'accept_terms' => 'accepted',
         ]);
-        BookingController::assertAddressesInZones($d);
+        $d = $details->normalize($d);
         $quote = Quote::findOrFail($d['quote_id']);
         $input = BookingController::quoteInput($d);
         foreach (['service_id', 'origin_zone_id', 'destination_zone_id'] as $k) {

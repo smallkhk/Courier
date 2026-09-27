@@ -9,7 +9,7 @@
             <div class="text-sm">
                 <a href="{{ route('ops.shipments.show', $at->shipment) }}" class="font-mono font-semibold">{{ $at->shipment->tracking_number }}</a>
                 <p class="mt-1"><x-pill tone="warning" icon="alert">{{ \App\Models\DeliveryAttempt::REASONS[$at->reason] }}</x-pill></p>
-                <p class="mt-1 text-ink-600">{{ $at->attempted_at->diffForHumans() }} by {{ $at->rider?->name ?? 'staff' }} · {{ $at->shipment->recipient_name }}, <a href="tel:{{ $at->shipment->recipient_phone }}">{{ $at->shipment->recipient_phone }}</a></p>
+                <p class="mt-1 text-ink-600">{{ $at->attempted_at->diffForHumans() }} by {{ $at->rider?->name ?? 'staff' }} · {{ $at->shipment->recipient_name }}, <a href="tel:{{ $at->shipment->recipient_phone }}">{{ \App\Support\Phone::display($at->shipment->recipient_phone) }}</a></p>
                 @if($at->note)<p class="mt-1">“{{ $at->note }}”</p>@endif
                 <p class="text-xs text-ink-500">Attempts on this shipment: {{ \App\Models\DeliveryAttempt::where('shipment_id', $at->shipment_id)->count() }}</p>
             </div>
