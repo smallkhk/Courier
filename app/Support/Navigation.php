@@ -94,4 +94,35 @@ class Navigation
 
         return $items;
     }
+
+    /** Icon colors cycled down the sidebar so every section is easy to spot. */
+    public const COLORS = ['#38bdf8', '#a78bfa', '#fbbf24', '#34d399', '#fb7185', '#818cf8', '#2dd4bf', '#fb923c', '#f472b6', '#60a5fa'];
+
+    public static function isActive(array $item): bool
+    {
+        if (isset($item['params'])) {
+            $url = route($item['route'], $item['params']);
+
+            return request()->url() === $url || str_starts_with(request()->url(), $url.'/');
+        }
+
+        return request()->routeIs($item['match'] ?? $item['route']);
+    }
+
+    /** The sidebar item for the current page (any portal), used to decorate page headers. */
+    public static function current(?User $user): ?array
+    {
+        if (! $user) {
+            return null;
+        }
+        foreach (['ops', 'business', 'account', 'rider'] as $portal) {
+            foreach (self::for($portal, $user) as $i => $item) {
+                if (self::isActive($item)) {
+                    return $item + ['color' => self::COLORS[$i % count(self::COLORS)]];
+                }
+            }
+        }
+
+        return null;
+    }
 }

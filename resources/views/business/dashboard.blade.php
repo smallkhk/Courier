@@ -1,19 +1,12 @@
 @extends('layouts.portal', ['portal' => 'business'])
 @section('title', 'Company dashboard')
 @section('content')
-<section class="photo-hero mb-6 rounded-2xl shadow-lg" data-reveal>
-    <img src="{{ asset('images/warehouse-aisle-sm.webp') }}" alt="">
-    <div class="flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between sm:p-8">
-        <div>
-            <p class="text-sm text-brand-200">{{ \App\Models\BusinessMember::ROLE_LABELS[$membership->role] }}</p>
-            <h1 class="text-2xl text-white sm:text-3xl">{{ $business->name }}</h1>
-        </div>
-        <div class="flex flex-wrap gap-2">    @if($membership->can('create_shipments'))
-        <a href="{{ route('business.bulk.create') }}" class="btn btn-on-dark"><x-icon name="upload" class="size-4" />Bulk upload</a>
-        <a href="{{ route('book.start', ['as' => 'business']) }}" class="btn btn-accent"><x-icon name="plus" class="size-4" />New shipment</a>
-    @endif</div>
-    </div>
-</section>
+<x-dash-hero image="warehouse-aisle" :eyebrow="\App\Models\BusinessMember::ROLE_LABELS[$membership->role]" :title="$business->name" from="Warehouse" to="Customer">
+    @if($membership->can('create_shipments'))
+        <a href="{{ route('book.start', ['as' => 'business']) }}" class="btn btn-accent btn-lg btn-shine"><x-icon name="plus" class="size-4" />New shipment</a>
+        <a href="{{ route('business.bulk.create') }}" class="btn btn-on-dark btn-lg"><x-icon name="upload" class="size-4" />Bulk upload</a>
+    @endif
+</x-dash-hero>
 <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
     <x-stat label="Awaiting payment" :value="$stats['awaiting_payment']" icon="credit-card" :href="route('business.shipments.index', ['status' => 'pending_payment'])" />
     <x-stat label="In progress" :value="$stats['in_progress']" icon="truck" :href="route('business.shipments.index')" />
@@ -21,6 +14,13 @@
     <x-stat label="Delivered (30 days)" :value="$stats['delivered_30d']" icon="check-circle" :href="route('business.shipments.index', ['status' => 'delivered'])" />
 </div>
 <div class="mt-2 text-xs text-ink-500">Payment terms: {{ $business->billsByInvoice() ? 'monthly invoice (due in '.$business->invoice_due_days.' days)' : 'pay per shipment' }}</div>
+<div class="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-5">
+    @if($membership->can('create_shipments'))<a href="{{ route('business.bulk.create') }}" class="quick-tile" data-reveal><x-illus name="upload" size="size-12" />Bulk upload</a>@endif
+    <a href="{{ route('business.shipments.index') }}" class="quick-tile" data-reveal style="--d: 60ms"><x-illus name="track" tone="sky" size="size-12" />All shipments</a>
+    @if($membership->can('view_invoices'))<a href="{{ route('business.invoices.index') }}" class="quick-tile" data-reveal style="--d: 120ms"><x-illus name="invoice" tone="violet" size="size-12" />Invoices</a>@endif
+    @if($membership->can('view_reports'))<a href="{{ route('business.reports') }}" class="quick-tile" data-reveal style="--d: 180ms"><x-illus name="chart" tone="success" size="size-12" />Reports</a>@endif
+    @if($membership->can('manage_team'))<a href="{{ route('business.team.index') }}" class="quick-tile" data-reveal style="--d: 240ms"><x-illus name="team" tone="accent" size="size-12" />Team</a>@endif
+</div>
 <div class="card mt-6">
     <div class="card-header"><h2 class="text-lg">Recent shipments</h2><a href="{{ route('business.shipments.index') }}" class="text-sm">View all</a></div>
     @if($recent->isEmpty())

@@ -2,20 +2,16 @@
 @section('title', 'Rider')
 @section('content')
 <div class="mx-auto max-w-3xl space-y-5">
-    <div class="card card-body flex flex-wrap items-center justify-between gap-4">
-        <div>
-            <p class="text-sm text-ink-500">Duty status</p>
-            <p class="flex items-center gap-2 text-xl font-bold">
-                <span class="size-3 rounded-full {{ $profile->on_duty ? 'bg-success-600' : 'bg-ink-300' }}" aria-hidden="true"></span>
-                {{ $profile->on_duty ? 'On duty' : 'Off duty' }}
-            </p>
-            @if($profile->on_duty)<p class="text-xs text-ink-500">Since {{ $profile->on_duty_since?->format('g:i a') }}</p>@endif
-        </div>
+    <x-dash-hero image="truck-night" eyebrow="Courier" :title="$profile->on_duty ? 'You\'re on duty' : 'You\'re off duty'" from="Pickup" to="Drop-off">
+        <span class="inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-semibold {{ $profile->on_duty ? 'bg-emerald-400/15 text-emerald-200 ring-1 ring-emerald-300/30' : 'bg-white/10 text-white/80 ring-1 ring-white/20' }}">
+            <span class="size-2.5 rounded-full {{ $profile->on_duty ? 'animate-pulse bg-emerald-300' : 'bg-white/50' }}" aria-hidden="true"></span>
+            {{ $profile->on_duty ? 'On duty since '.$profile->on_duty_since?->format('g:i a') : 'Off duty' }}
+        </span>
         <form method="post" action="{{ route('rider.duty') }}">@csrf
             <input type="hidden" name="on_duty" value="{{ $profile->on_duty ? 0 : 1 }}">
-            <button class="btn {{ $profile->on_duty ? 'btn-secondary' : 'btn-primary' }} btn-lg" type="submit">{{ $profile->on_duty ? 'Go off duty' : 'Go on duty' }}</button>
+            <button class="btn {{ $profile->on_duty ? 'btn-on-dark' : 'btn-accent btn-shine' }}" type="submit">{{ $profile->on_duty ? 'Go off duty' : 'Go on duty' }}</button>
         </form>
-    </div>
+    </x-dash-hero>
 
     @if($profile->on_duty)
     <section class="card card-body" x-data="locationSharing(@js($locCfg))" aria-labelledby="loc-h">
@@ -59,7 +55,7 @@
         <h2 id="jobs-h" class="mb-3 text-lg">Your jobs</h2>
         @forelse($jobs as $a)
             @php $s = $a->shipment; @endphp
-            <a href="{{ route('rider.jobs.show', $a) }}" class="card mb-3 block p-4 no-underline transition hover:border-brand-300 hover:no-underline">
+            <a href="{{ route('rider.jobs.show', $a) }}" class="card hover-lift mb-3 block border-l-4 p-4 no-underline hover:no-underline {{ $a->leg === 'pickup' ? 'border-l-accent-400' : 'border-l-sky-400' }}" data-reveal>
                 <div class="flex flex-wrap items-center justify-between gap-2">
                     <span class="font-mono font-semibold text-ink-900">{{ $s->tracking_number }}</span>
                     <span class="flex gap-2">

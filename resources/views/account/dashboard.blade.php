@@ -1,16 +1,10 @@
 @extends('layouts.portal', ['portal' => 'account'])
 @section('title', 'Dashboard')
 @section('content')
-<section class="photo-hero mb-6 rounded-2xl shadow-lg" data-reveal>
-    <img src="{{ asset('images/courier-boxes-sm.webp') }}" alt="">
-    <div class="flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between sm:p-8">
-        <div>
-            <p class="text-sm text-brand-200">{{ now()->timezone(\App\Support\Settings::get('timezone'))->format('l j F') }}</p>
-            <h1 class="text-2xl text-white sm:text-3xl">Hello, {{ strtok(auth()->user()->name, ' ') }}</h1>
-        </div>
-        <a href="{{ route('book.start') }}" class="btn btn-accent btn-lg"><x-icon name="plus" class="size-4" />Send a parcel</a>
-    </div>
-</section>
+<x-dash-hero image="courier-boxes" eyebrow="Your deliveries" :title="'Hello, '.strtok(auth()->user()->name, ' ').' 👋'" from="You" to="Them">
+    <a href="{{ route('book.start') }}" class="btn btn-accent btn-lg btn-shine"><x-icon name="plus" class="size-4" />Send a parcel</a>
+    <a href="{{ route('track.form') }}" class="btn btn-on-dark btn-lg"><x-icon name="search" class="size-4" />Track</a>
+</x-dash-hero>
 @if(! auth()->user()->hasVerifiedEmail())
     <x-alert type="warning" class="mb-6">Please verify your email address. <form method="post" action="{{ route('verification.send') }}" class="inline">@csrf<button class="font-semibold underline" type="submit">Resend link</button></form></x-alert>
 @endif
@@ -19,6 +13,12 @@
     <x-stat label="Awaiting payment" :value="$counts['awaiting_payment']" icon="credit-card" :href="route('account.shipments.index', ['status' => 'pending_payment'])" />
     <x-stat label="Delivered" :value="$counts['delivered']" icon="check-circle" :href="route('account.shipments.index', ['status' => 'delivered'])" />
     <x-stat label="All shipments" :value="$counts['total']" icon="package" :href="route('account.shipments.index')" />
+</div>
+<div class="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
+    <a href="{{ route('book.start') }}" class="quick-tile" data-reveal><x-illus name="box" size="size-12" />Send a parcel</a>
+    <a href="{{ route('track.form') }}" class="quick-tile" data-reveal style="--d: 60ms"><x-illus name="track" tone="sky" size="size-12" />Track a shipment</a>
+    <a href="{{ route('account.addresses.index') }}" class="quick-tile" data-reveal style="--d: 120ms"><x-illus name="pin" tone="accent" size="size-12" />Saved addresses</a>
+    <a href="{{ route('account.support.index') }}" class="quick-tile" data-reveal style="--d: 180ms"><x-illus name="support" tone="violet" size="size-12" />Get help</a>
 </div>
 <div class="card mt-6">
     <div class="card-header"><h2 class="text-lg">Recent shipments</h2><a href="{{ route('account.shipments.index') }}" class="text-sm">View all</a></div>

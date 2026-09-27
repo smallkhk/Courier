@@ -45,6 +45,25 @@ Alpine.data('countUp', (target) => ({
     },
 }));
 
+/* Ticking clock in the business timezone (not the viewer's), e.g. "2:41 PM EDT". */
+Alpine.data('liveClock', (tz, long = false) => ({
+    text: '',
+    init() {
+        let fmt;
+        try {
+            fmt = new Intl.DateTimeFormat('en-US', long
+                ? { timeZone: tz, weekday: 'long', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit' }
+                : { timeZone: tz, hour: 'numeric', minute: '2-digit', second: '2-digit', timeZoneName: 'short' });
+        } catch {
+            fmt = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit' });
+        }
+        const tick = () => (this.text = fmt.format(new Date()));
+        tick();
+        const id = setInterval(tick, 1000);
+        this.$cleanup?.(() => clearInterval(id));
+    },
+}));
+
 /* Hero demo: cycles through example journey stages (clearly labelled as an example). */
 Alpine.data('journeyDemo', (stages) => ({
     stages,
