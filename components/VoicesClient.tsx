@@ -5,6 +5,8 @@ import { useRef, useState } from "react";
 import type { SavedVoice } from "@/lib/repo.ts";
 import type { Voice } from "@/lib/voices.ts";
 import { api } from "./api";
+import { Avatar } from "./Avatar";
+import { PlayButton } from "./PlayButton";
 
 type LibraryVoice = {
   public_owner_id: string;
@@ -34,13 +36,24 @@ export function VoicesClient({
     <>
       <section className="card">
         <h2>My voices</h2>
-        {saved.length === 0 && <p className="muted">No saved voices yet. Find one in the library below, or clone your own.</p>}
-        <div className="grid2">
+        {saved.length === 0 && (
+          <div className="empty">
+            <span className="emoji">🎧</span>
+            No saved voices yet. Find one in the library below, or clone your own.
+          </div>
+        )}
+        <div className="voice-grid">
           {saved.map((v) => (
             <div key={v.id} className="voice-card">
-              <strong>{v.name}</strong>
-              <span className="small muted">{v.source === "clone" ? "Your cloned voice" : v.description}</span>
-              {v.preview_url && <audio controls preload="none" src={v.preview_url} />}
+              <div className="row">
+                <Avatar name={v.name} />
+                <div style={{ minWidth: 0 }}>
+                  <strong>{v.name}</strong>
+                  <div className="small muted">{v.source === "clone" ? "Your cloned voice" : v.description}</div>
+                </div>
+              </div>
+              {v.source === "clone" && <span className="pill green" style={{ alignSelf: "flex-start" }}>✨ Your voice</span>}
+              {v.preview_url && <PlayButton src={v.preview_url} />}
               <button
                 className="danger"
                 onClick={async () => {
@@ -55,14 +68,16 @@ export function VoicesClient({
           ))}
         </div>
         <details style={{ marginTop: 12 }}>
-          <summary className="small">Built-in voices ({defaults.length})</summary>
-          <ul className="small">
+          <summary className="small muted">
+            <span className="chev">›</span> Built-in voices ({defaults.length})
+          </summary>
+          <div className="voice-meta">
             {defaults.map((v) => (
-              <li key={v.id}>
-                {v.name}: {v.description}
-              </li>
+              <span key={v.id} className="pill">
+                {v.name} · {v.description}
+              </span>
             ))}
-          </ul>
+          </div>
         </details>
       </section>
       <CloneVoice enabled={canClone} onDone={() => router.refresh()} />
@@ -121,10 +136,12 @@ function Library({ onSaved }: { onSaved: () => void }) {
 
   return (
     <section className="card stack">
-      <h2>Voice library</h2>
-      <p className="small muted">Thousands of realistic voices. Play a sample, then save the ones you like.</p>
+      <div>
+        <h2 style={{ marginBottom: 2 }}>Voice library</h2>
+        <p className="small muted">Thousands of realistic voices. Play a sample, then save the ones you like.</p>
+      </div>
       <form
-        className="grid2"
+        className="lib-form"
         onSubmit={(e) => {
           e.preventDefault();
           void load(0);
@@ -136,21 +153,37 @@ function Library({ onSaved }: { onSaved: () => void }) {
           <option value="male">Male</option>
           <option value="female">Female</option>
         </select>
-        <input placeholder="Accent, e.g. nigerian, british" value={filters.accent} onChange={set("accent")} aria-label="Accent" />
-        <input placeholder="Language code, e.g. en, fr" value={filters.language} onChange={set("language")} aria-label="Language" />
+        <input placeholder="Accent" value={filters.accent} onChange={set("accent")} aria-label="Accent" />
+        <input placeholder="Language (en, fr…)" value={filters.language} onChange={set("language")} aria-label="Language" />
         <button type="submit" disabled={busy}>
           {busy ? "Searching…" : "Search"}
         </button>
       </form>
       {error && <p className="error">{error}</p>}
-      <div className="grid2">
+      {voices.length === 0 && !busy && (
+        <div className="empty">
+          <span className="emoji">🔎</span>
+          Search to explore realistic voices. Try &quot;nigerian&quot;, &quot;warm&quot; or &quot;deep&quot;.
+        </div>
+      )}
+      <div className="voice-grid">
         {voices.map((v) => (
           <div key={`${v.public_owner_id}-${v.voice_id}`} className="voice-card">
-            <strong>{v.name}</strong>
-            <span className="small muted">
-              {[v.gender, v.age, v.accent, v.descriptive, v.use_case].filter(Boolean).join(" · ")}
-            </span>
-            {v.preview_url && <audio controls preload="none" src={v.preview_url} />}
+            <div className="row">
+              <Avatar name={v.name} />
+              <div style={{ minWidth: 0 }}>
+                <strong>{v.name}</strong>
+                <div className="small muted">{v.use_case || v.language}</div>
+              </div>
+            </div>
+            <div className="voice-meta">
+              {[v.gender, v.age, v.accent, v.descriptive].filter(Boolean).map((t) => (
+                <span key={t} className="pill">
+                  {t}
+                </span>
+              ))}
+            </div>
+            {v.preview_url && <PlayButton src={v.preview_url} />}
             <button className="secondary" disabled={savedIds.has(v.voice_id)} onClick={() => save(v)}>
               {savedIds.has(v.voice_id) ? "Saved" : "Save voice"}
             </button>
@@ -235,8 +268,11 @@ function CloneVoice({ enabled, onDone }: { enabled: boolean; onDone: () => void 
   }
 
   return (
-    <section className="card stack">
-      <h2>Clone your voice</h2>
+    <section className="card card-glow stack">
+      <div>
+        <h2 style={{ marginBottom: 2 }}>✨ Clone your voice</h2>
+        <p className="small muted">Your AI can sound exactly like you.</p>
+      </div>
       {!enabled ? (
         <p className="muted small">You already have a cloned voice. Remove it above to record a new one.</p>
       ) : (
@@ -259,7 +295,7 @@ function CloneVoice({ enabled, onDone }: { enabled: boolean; onDone: () => void 
               </button>
             ) : (
               <>
-                <span className="rec" aria-hidden />
+                <span className="rec-dot" aria-hidden />
                 <span className="timer">
                   {Math.floor(seconds / 60)}:{String(seconds % 60).padStart(2, "0")}
                 </span>
@@ -271,7 +307,7 @@ function CloneVoice({ enabled, onDone }: { enabled: boolean; onDone: () => void 
           </div>
           {audio && !recording && (
             <>
-              <audio controls src={URL.createObjectURL(audio)} />
+              <audio controls src={URL.createObjectURL(audio)} style={{ width: "100%" }} />
               <label className="row" style={{ fontWeight: 400 }}>
                 <input type="checkbox" style={{ width: "auto" }} checked={consent} onChange={(e) => setConsent(e.target.checked)} />
                 This is my own voice and I agree to it being cloned for my calls.

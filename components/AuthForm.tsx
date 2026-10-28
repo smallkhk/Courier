@@ -26,11 +26,14 @@ export function AuthForm() {
   }
 
   return (
-    <form className="card stack" onSubmit={submit}>
-      <h2>{mode === "signup" ? "Create an account" : "Sign in"}</h2>
+    <form className="card card-glow stack" onSubmit={submit}>
+      <div>
+        <h2 style={{ fontSize: "1.4rem", marginBottom: 2 }}>{mode === "signup" ? "Get started" : "Welcome back"}</h2>
+        <p className="muted small">{mode === "signup" ? "Create your account in seconds." : "Sign in to your calls."}</p>
+      </div>
       <div>
         <label htmlFor="email">Email</label>
-        <input id="email" name="email" type="email" autoComplete="email" required />
+        <input id="email" name="email" type="email" autoComplete="email" placeholder="you@example.com" required />
       </div>
       <div>
         <label htmlFor="password">Password</label>
@@ -40,25 +43,27 @@ export function AuthForm() {
           type="password"
           autoComplete={mode === "signup" ? "new-password" : "current-password"}
           minLength={mode === "signup" ? 10 : undefined}
+          placeholder={mode === "signup" ? "At least 10 characters" : ""}
           required
         />
       </div>
-      {error && <p className="error">{error}</p>}
-      <div className="row spread">
-        <button type="submit" disabled={busy}>
-          {mode === "signup" ? "Create account" : "Sign in"}
-        </button>
-        <button
-          type="button"
-          className="secondary"
-          onClick={() => {
+      {error && <p className="error small">{error}</p>}
+      <button type="submit" disabled={busy} style={{ width: "100%" }}>
+        {busy ? "One moment…" : mode === "signup" ? "Create account" : "Sign in"}
+      </button>
+      <p className="small muted" style={{ textAlign: "center" }}>
+        {mode === "signup" ? "Already have an account? " : "New here? "}
+        <a
+          href="#"
+          onClick={(e) => {
+            e.preventDefault();
             setMode(mode === "signup" ? "login" : "signup");
             setError("");
           }}
         >
-          {mode === "signup" ? "I already have an account" : "Create an account instead"}
-        </button>
-      </div>
+          {mode === "signup" ? "Sign in" : "Create an account"}
+        </a>
+      </p>
     </form>
   );
 }

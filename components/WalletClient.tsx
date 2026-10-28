@@ -5,11 +5,26 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import type { Deposit } from "@/lib/repo.ts";
 import { api, usd } from "./api";
+import { CheckIcon, CopyIcon } from "./Icons";
 
 const NETWORK_LABEL: Record<Deposit["network"], string> = {
   trc20: "USDT on TRON (TRC20)",
   bep20: "USDT on BNB Smart Chain (BEP20)",
 };
+
+const NETWORK_SHORT: Record<Deposit["network"], { name: string; note: string }> = {
+  trc20: { name: "TRC20", note: "TRON network" },
+  bep20: { name: "BEP20", note: "BNB Smart Chain" },
+};
+
+const STATUS_PILL: Record<Deposit["status"], string> = {
+  pending: "amber",
+  credited: "green",
+  expired: "",
+  review: "amber",
+};
+
+const QUICK_AMOUNTS = [5, 10, 20, 50];
 
 const STATUS_LABEL: Record<Deposit["status"], string> = {
   pending: "Waiting for payment",
@@ -38,6 +53,7 @@ function CopyField({ value, label }: { value: string; label: string }) {
             setTimeout(() => setCopied(false), 1500);
           }}
         >
+          {copied ? <CheckIcon size={16} /> : <CopyIcon size={16} />}
           {copied ? "Copied" : "Copy"}
         </button>
       </div>
@@ -99,9 +115,10 @@ export function WalletClient({
 
   return (
     <>
-      <section className="card">
+      <section className="card card-glow">
         <div className="muted small">Balance</div>
-        <div className="big">{usd(credit)}</div>
+        <div className="balance-amount">{usd(credit)}</div>
+        <div className="small muted" style={{ marginTop: 6 }}>1 USDT = $1 of call credit</div>
       </section>
 
       {open ? (
@@ -109,17 +126,18 @@ export function WalletClient({
       ) : (
         <form className="card stack" onSubmit={create}>
           <h2>Top up with USDT</h2>
-          <div className="grid2">
-            <div>
-              <label htmlFor="network">Network</label>
-              <select id="network" value={network} onChange={(e) => setNetwork(e.target.value as Deposit["network"])}>
-                {networks.map((n) => (
-                  <option key={n} value={n}>
-                    {NETWORK_LABEL[n]}
-                  </option>
-                ))}
-              </select>
+          <div>
+            <label>Network</label>
+            <div className="net-toggle">
+              {networks.map((n) => (
+                <button key={n} type="button" className={network === n ? "active" : ""} onClick={() => setNetwork(n)}>
+                  {NETWORK_SHORT[n].name}
+                  <small>{NETWORK_SHORT[n].note}</small>
+                </button>
+              ))}
             </div>
+          </div>
+          <div className="stack">
             <div>
               <label htmlFor="amount">Amount (USDT)</label>
               <input
@@ -133,22 +151,36 @@ export function WalletClient({
                 required
               />
             </div>
+            <div className="amount-chips">
+              {QUICK_AMOUNTS.filter((a) => a >= minDeposit).map((a) => (
+                <button
+                  key={a}
+                  type="button"
+                  className={Number(amount) === a ? "" : "secondary"}
+                  onClick={() => setAmount(String(a))}
+                >
+                  {a} USDT
+                </button>
+              ))}
+            </div>
           </div>
-          <p className="small muted">1 USDT = $1 of credit. Minimum {minDeposit} USDT.</p>
+          <p className="small muted">Minimum {minDeposit} USDT. Credit lands automatically once the payment confirms.</p>
           {error && <p className="error">{error}</p>}
-          <div>
-            <button type="submit" disabled={busy}>
-              Continue
-            </button>
-          </div>
+          <button type="submit" disabled={busy} className="big-btn" style={{ width: "100%" }}>
+            Continue to payment
+          </button>
         </form>
       )}
 
       <section className="card">
         <h2>Top-up history</h2>
         {deposits.length === 0 ? (
-          <p className="muted">No top-ups yet.</p>
+          <div className="empty">
+            <span className="emoji">💸</span>
+            No top-ups yet.
+          </div>
         ) : (
+          <div className="table-wrap">
           <table>
             <thead>
               <tr>
@@ -164,11 +196,14 @@ export function WalletClient({
                   <td>
                     {usdt(d.amount_micros)} USDT · {d.network.toUpperCase()}
                   </td>
-                  <td>{STATUS_LABEL[d.status]}</td>
+                  <td>
+                    <span className={`pill ${STATUS_PILL[d.status]}`}>{STATUS_LABEL[d.status]}</span>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </section>
     </>
@@ -241,13 +276,20 @@ function OpenDeposit({
 
   return (
     <section className="card stack">
-      <h2>Send exactly {usdt(deposit.amount_micros)} USDT</h2>
-      <p className="small">
-        Network: <strong>{NETWORK_LABEL[deposit.network]}</strong>. Sending on any other network loses the funds.
-      </p>
-      <div className="row" style={{ alignItems: "flex-start" }}>
+      <div className="row spread">
+        <h2 style={{ margin: 0 }}>Complete your payment</h2>
+        <span className="pill amber">{NETWORK_SHORT[deposit.network].name}</span>
+      </div>
+      <div>
+        <div className="small muted">Send exactly</div>
+        <div className="exact grad-text">{usdt(deposit.amount_micros)} USDT</div>
+        <div className="small">
+          on <strong>{NETWORK_LABEL[deposit.network]}</strong>. Other networks lose the funds.
+        </div>
+      </div>
+      <div className="pay-box">
         {qr && <img className="qr" src={qr} alt="Wallet address QR code" />}
-        <div className="stack" style={{ flex: 1, minWidth: 240 }}>
+        <div className="stack">
           <CopyField label="Amount (send this exact amount)" value={usdt(deposit.amount_micros)} />
           <CopyField label="To address" value={address} />
         </div>
@@ -256,10 +298,15 @@ function OpenDeposit({
         The exact amount, including the cents, is how we know the payment is yours. If your exchange takes its fee
         out of the amount, add the fee so the address receives exactly {usdt(deposit.amount_micros)} USDT.
       </p>
-      <p className="small">
-        <span className="rec" aria-hidden /> Watching for your payment ·{" "}
-        {left > 0 ? `${Math.floor(left / 60)} min left` : "time is up, but late payments still count for a few minutes"}
-      </p>
+      <div className="watching">
+        <span className="spinner" aria-hidden />
+        <div className="small">
+          <strong>Watching the blockchain for your payment</strong>
+          <div className="muted">
+            {left > 0 ? `${Math.floor(left / 60)} min left to pay` : "Time is up, but late payments still count for a few minutes"}
+          </div>
+        </div>
+      </div>
       <form className="stack" onSubmit={claim}>
         <div>
           <label htmlFor="hash">Already paid? Paste the transaction hash to check now</label>

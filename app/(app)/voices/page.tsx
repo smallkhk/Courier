@@ -9,7 +9,7 @@ export default async function VoicesPage() {
   return (
     <>
       <h1>Voices</h1>
-      <p className="muted">Pick how your AI sounds on calls: a built-in voice, one from the library, or your own.</p>
+      <p className="muted">How your AI sounds on calls: a built-in voice, one from the library, or your own.</p>
       <VoicesClient
         saved={listSavedVoices(user.accountId)}
         defaults={DEFAULT_VOICES}

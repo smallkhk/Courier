@@ -4,6 +4,20 @@
 import { randomUUID } from "node:crypto";
 import { getDb, now, transaction } from "./db.ts";
 
+// node:sqlite returns rows with a null prototype, which React can't pass to
+// client components. Copy them into plain objects.
+function plain<T>(row: unknown): T {
+  return { ...(row as object) } as T;
+}
+
+function plainOrUndefined<T>(row: unknown): T | undefined {
+  return row === undefined ? undefined : plain<T>(row);
+}
+
+function plainAll<T>(rows: unknown[]): T[] {
+  return rows.map((row) => plain<T>(row));
+}
+
 export type TranscriptLine = { role: "user" | "agent"; message: string };
 
 export type Profile = {
@@ -120,12 +134,12 @@ export function applyCredit(
 }
 
 export function listUsage(accountId: string, limit = 50): UsageEvent[] {
-  return getDb()
+  return plainAll<UsageEvent>(getDb()
     .prepare(
       `SELECT id, kind, detail, quantity, amount_micros, created_at FROM usage_events
        WHERE account_id = ? ORDER BY created_at DESC, rowid DESC LIMIT ?`,
     )
-    .all(accountId, limit) as UsageEvent[];
+    .all(accountId, limit));
 }
 
 // ----------------------------------------------------------------- profile
@@ -135,8 +149,8 @@ const EMPTY_PROFILE: Profile = { full_name: "", nickname: "", location: "", abou
 export function getProfile(accountId: string): Profile {
   const row = getDb()
     .prepare("SELECT full_name, nickname, location, about, speaking_style FROM profiles WHERE account_id = ?")
-    .get(accountId) as Profile | undefined;
-  return row ?? EMPTY_PROFILE;
+    .get(accountId);
+  return plainOrUndefined<Profile>(row) ?? { ...EMPTY_PROFILE };
 }
 
 export function saveProfile(accountId: string, profile: Profile): void {
@@ -157,15 +171,17 @@ const CALLER_COLUMNS =
   "id, name, relationship, about, how_we_talk, location, timezone, language, voice_id, opening, custom_opening, created_at, updated_at";
 
 export function listCallers(accountId: string): Caller[] {
-  return getDb()
+  return plainAll<Caller>(getDb()
     .prepare(`SELECT ${CALLER_COLUMNS} FROM callers WHERE account_id = ? ORDER BY updated_at DESC`)
-    .all(accountId) as Caller[];
+    .all(accountId));
 }
 
 export function getCaller(accountId: string, id: string): Caller | undefined {
-  return getDb()
+  return plainOrUndefined<Caller>(
+    getDb()
     .prepare(`SELECT ${CALLER_COLUMNS} FROM callers WHERE account_id = ? AND id = ?`)
-    .get(accountId, id) as Caller | undefined;
+    .get(accountId, id),
+  );
 }
 
 export function insertCaller(accountId: string, f: CallerFields): Caller {
@@ -232,16 +248,14 @@ export function getCall(accountId: string, id: string): Call | undefined {
 
 export function listCalls(accountId: string, opts: { callerId?: string; limit?: number } = {}): Call[] {
   const limit = opts.limit ?? 20;
-  const rows = (
-    opts.callerId
-      ? getDb()
-          .prepare(`SELECT ${CALL_COLUMNS} FROM calls WHERE account_id = ? AND caller_id = ? ORDER BY created_at DESC LIMIT ?`)
-          .all(accountId, opts.callerId, limit)
-      : getDb()
-          .prepare(`SELECT ${CALL_COLUMNS} FROM calls WHERE account_id = ? ORDER BY created_at DESC LIMIT ?`)
-          .all(accountId, limit)
-  ) as CallRow[];
-  return rows.map(toCall);
+  const rows = opts.callerId
+    ? getDb()
+        .prepare(`SELECT ${CALL_COLUMNS} FROM calls WHERE account_id = ? AND caller_id = ? ORDER BY created_at DESC LIMIT ?`)
+        .all(accountId, opts.callerId, limit)
+    : getDb()
+        .prepare(`SELECT ${CALL_COLUMNS} FROM calls WHERE account_id = ? ORDER BY created_at DESC LIMIT ?`)
+        .all(accountId, limit);
+  return plainAll<CallRow>(rows).map(toCall);
 }
 
 // Summaries of the most recent finished calls with a caller, oldest first,
@@ -337,11 +351,11 @@ export function abandonStaleCalls(accountId: string, olderThan: number): void {
 // ------------------------------------------------------------------ voices
 
 export function listSavedVoices(accountId: string): SavedVoice[] {
-  return getDb()
+  return plainAll<SavedVoice>(getDb()
     .prepare(
       "SELECT id, voice_id, name, description, preview_url, source, created_at FROM voices WHERE account_id = ? ORDER BY created_at DESC",
     )
-    .all(accountId) as SavedVoice[];
+    .all(accountId));
 }
 
 export function insertSavedVoice(
@@ -357,9 +371,11 @@ export function insertSavedVoice(
 }
 
 export function getSavedVoice(accountId: string, id: string): SavedVoice | undefined {
-  return getDb()
+  return plainOrUndefined<SavedVoice>(
+    getDb()
     .prepare("SELECT id, voice_id, name, description, preview_url, source, created_at FROM voices WHERE account_id = ? AND id = ?")
-    .get(accountId, id) as SavedVoice | undefined;
+    .get(accountId, id),
+  );
 }
 
 export function deleteSavedVoice(accountId: string, id: string): void {
@@ -378,13 +394,15 @@ export function countClones(accountId: string): number {
 const DEPOSIT_COLUMNS = "id, network, amount_micros, status, tx_hash, note, created_at, expires_at, credited_at";
 
 export function listDeposits(accountId: string, limit = 20): Deposit[] {
-  return getDb()
+  return plainAll<Deposit>(getDb()
     .prepare(`SELECT ${DEPOSIT_COLUMNS} FROM deposits WHERE account_id = ? ORDER BY created_at DESC LIMIT ?`)
-    .all(accountId, limit) as Deposit[];
+    .all(accountId, limit));
 }
 
 export function getDeposit(accountId: string, id: string): Deposit | undefined {
-  return getDb()
+  return plainOrUndefined<Deposit>(
+    getDb()
     .prepare(`SELECT ${DEPOSIT_COLUMNS} FROM deposits WHERE account_id = ? AND id = ?`)
-    .get(accountId, id) as Deposit | undefined;
+    .get(accountId, id),
+  );
 }

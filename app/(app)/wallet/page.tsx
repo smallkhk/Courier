@@ -23,8 +23,9 @@ export default async function WalletPage() {
       <section className="card">
         <h2>Transactions and usage</h2>
         {usage.length === 0 ? (
-          <p className="muted">Nothing yet.</p>
+          <div className="empty">Nothing yet.</div>
         ) : (
+          <div className="table-wrap">
           <table>
             <thead>
               <tr>
@@ -41,11 +42,12 @@ export default async function WalletPage() {
                     {KIND_LABEL[e.kind] ?? e.kind}
                     {e.kind === "call" && ` · ${Math.floor(e.quantity / 60)}m ${e.quantity % 60}s`}
                   </td>
-                  <td className={e.amount_micros < 0 ? "" : "ok"}>{formatUsd(e.amount_micros)}</td>
+                  <td className={e.amount_micros < 0 ? "amount-neg" : "amount-pos"}>{formatUsd(e.amount_micros)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </section>
     </>

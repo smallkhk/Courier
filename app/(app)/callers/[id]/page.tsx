@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
+import { Avatar } from "@/components/Avatar";
 import { CallerForm } from "@/components/CallerForm";
 import { CallPanel } from "@/components/CallPanel";
+import { languageName } from "@/lib/languages.ts";
 import { pageUser } from "@/lib/page-auth.ts";
 import { getCaller, getCredit, listCalls } from "@/lib/repo.ts";
 import { voicesFor } from "@/lib/voices.ts";
@@ -15,8 +17,17 @@ export default async function CallerPage({ params }: { params: Promise<{ id: str
 
   return (
     <>
-      <h1>{caller.name}</h1>
-      {caller.relationship && <p className="muted">{caller.relationship}</p>}
+      <div className="caller-head">
+        <Avatar name={caller.name} size="lg" />
+        <div>
+          <h1>{caller.name}</h1>
+          <div className="row" style={{ gap: 6 }}>
+            {caller.relationship && <span className="pill">{caller.relationship}</span>}
+            {caller.location && <span className="pill">📍 {caller.location}</span>}
+            <span className="pill">🗣 {languageName(caller.language)}</span>
+          </div>
+        </div>
+      </div>
       <CallPanel
         key={caller.id}
         callerId={caller.id}
@@ -30,9 +41,9 @@ export default async function CallerPage({ params }: { params: Promise<{ id: str
       <section className="card">
         <details>
           <summary>
-            <strong>Edit {caller.name}&apos;s details</strong>
+            <span className="chev">›</span> <strong>Edit {caller.name}&apos;s details</strong>
           </summary>
-          <div style={{ marginTop: 12 }}>
+          <div style={{ marginTop: 8 }}>
             <CallerForm callerId={caller.id} initial={fields} voices={voices} />
           </div>
         </details>

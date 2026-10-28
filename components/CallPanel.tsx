@@ -1,11 +1,13 @@
 "use client";
 
 import { ConversationProvider, useConversation } from "@elevenlabs/react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { LANGUAGES } from "@/lib/languages.ts";
 import type { Call } from "@/lib/repo.ts";
 import type { Voice } from "@/lib/voices.ts";
 import { api, usd } from "./api";
+import { HangUpIcon, MicIcon, MicOffIcon, PhoneIcon, WaveHandIcon } from "./Icons";
+import { Orb } from "./Orb";
 
 type Line = { key: string; role: "user" | "agent"; message: string };
 type SettleResult = { live: number; processing: number; settled: number; creditMicros: number; calls: Call[] };
@@ -34,6 +36,23 @@ const WRAP_UP =
 function clock(secs: number): string {
   const s = Math.max(0, Math.floor(secs));
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+}
+
+function Transcript({ lines, callerName }: { lines: { role: "user" | "agent"; message: string; key: string | number }[]; callerName: string }) {
+  return (
+    <div className="chat">
+      {lines.map((line, i) => {
+        const me = line.role === "agent";
+        const showLabel = i === 0 || lines[i - 1].role !== line.role;
+        return (
+          <div key={line.key} style={{ display: "contents" }}>
+            {showLabel && <span className={`bubble-label ${me ? "me" : ""}`}>{me ? "Your AI" : callerName}</span>}
+            <div className={`bubble ${me ? "me" : "them"}`}>{line.message}</div>
+          </div>
+        );
+      })}
+    </div>
+  );
 }
 
 function Panel({ callerId, callerName, defaultVoiceId, defaultLanguage, voices, initialCalls, initialCredit }: Props) {
@@ -103,6 +122,13 @@ function Panel({ callerId, callerName, defaultVoiceId, defaultLanguage, voices, 
   });
 
   const live = conversation.status === "connected";
+  const level = useCallback(() => {
+    try {
+      return Math.max(conversation.getOutputVolume(), conversation.getInputVolume() * 0.7);
+    } catch {
+      return 0;
+    }
+  }, [conversation]);
 
   function requestWrapUp() {
     if (wrapSent.current) return;
@@ -160,135 +186,174 @@ function Panel({ callerId, callerName, defaultVoiceId, defaultLanguage, voices, 
 
   const connecting = starting || conversation.status === "connecting";
   const lastSummary = calls.find((c) => c.summary)?.summary;
+  const pastCalls = calls.filter((c) => c.conversation_id);
+
+  if (live || connecting) {
+    return (
+      <section className="card card-glow callscreen">
+        <div className="call-status small">
+          {live ? (
+            <>
+              <span className="live-dot" /> On call with {callerName}
+            </>
+          ) : (
+            <>Connecting…</>
+          )}
+        </div>
+        <Orb getLevel={live ? level : undefined} idle={!live} />
+        <div className="timer">{clock(elapsed)}</div>
+        <div className="small muted">
+          {!live
+            ? "Getting your AI ready"
+            : wrapping
+              ? "Wrapping up. The call ends after the goodbye."
+              : conversation.isSpeaking
+                ? "Your AI is speaking"
+                : `Listening to ${callerName}`}
+        </div>
+        {live && maxSeconds > 0 && (
+          <>
+            <div className="progress">
+              <span style={{ width: `${Math.min(100, (elapsed / maxSeconds) * 100)}%` }} />
+            </div>
+            <div className="small faint" style={{ marginTop: 6 }}>
+              Balance covers {clock(maxSeconds)}
+            </div>
+          </>
+        )}
+        {live && (
+          <div className="call-controls">
+            <span className="control-label">
+              <button className="round-btn secondary" onClick={() => setMuted(!muted)} aria-label={muted ? "Unmute" : "Mute"}>
+                {muted ? <MicOffIcon /> : <MicIcon />}
+              </button>
+              {muted ? "Unmute" : "Mute"}
+            </span>
+            <span className="control-label">
+              <button className="round-btn" onClick={requestWrapUp} disabled={wrapping} aria-label="Wrap up">
+                <WaveHandIcon />
+              </button>
+              Wrap up
+            </span>
+            <span className="control-label">
+              <button className="round-btn hangup" onClick={() => conversation.endSession()} aria-label="End call">
+                <HangUpIcon />
+              </button>
+              End
+            </span>
+          </div>
+        )}
+        {lines.length > 0 && (
+          <div style={{ marginTop: 22 }}>
+            <Transcript lines={lines} callerName={callerName} />
+          </div>
+        )}
+        {error && <p className="error">{error}</p>}
+      </section>
+    );
+  }
 
   return (
     <>
-      {!live && (
-        <section className="card stack">
-          <h2>Today&apos;s call</h2>
-          {lastSummary && (
-            <p className="small muted">
-              <strong>Last time:</strong> {lastSummary}
-            </p>
-          )}
+      <section className="card stack">
+        <h2>Today&apos;s call</h2>
+        {lastSummary && (
+          <div className="memory">
+            <strong>Last time · </strong>
+            {lastSummary}
+          </div>
+        )}
+        <div>
+          <label htmlFor="topics">What should your AI talk about?</label>
+          <textarea
+            id="topics"
+            rows={4}
+            value={topics}
+            onChange={(e) => setTopics(e.target.value)}
+            maxLength={4000}
+            placeholder={`e.g. Ask ${callerName} how the new job is going. Remind them about Dad's birthday on Saturday and ask if they can bring the cake.`}
+          />
+        </div>
+        <div className="grid2">
           <div>
-            <label htmlFor="topics">What should the AI talk about?</label>
-            <textarea
-              id="topics"
-              rows={4}
-              value={topics}
-              onChange={(e) => setTopics(e.target.value)}
-              maxLength={4000}
-              placeholder={`e.g. Ask ${callerName} how the new job is going. Remind him about Dad's birthday on Saturday and ask if he can bring the cake.`}
-            />
-          </div>
-          <div className="grid2">
-            <div>
-              <label htmlFor="voice">Voice</label>
-              <select id="voice" value={voiceId} onChange={(e) => setVoiceId(e.target.value)}>
-                {voices.map((v) => (
-                  <option key={v.id} value={v.id}>
-                    {v.name} ({v.description})
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label htmlFor="language">Language</label>
-              <select id="language" value={language} onChange={(e) => setLanguage(e.target.value)}>
-                {LANGUAGES.map((l) => (
-                  <option key={l.code} value={l.code}>
-                    {l.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-          <p className="small muted">
-            Call {callerName} from your phone and put it on speaker next to this device. Use the device&apos;s
-            speakers, not headphones. When they pick up, press Start call. Balance: {usd(credit)}.
-          </p>
-          {error && <p className="error">{error}</p>}
-          {note && <p className="small">{note}</p>}
-          <div>
-            <button onClick={start} disabled={connecting}>
-              {connecting ? "Connecting…" : "Start call"}
-            </button>
-          </div>
-        </section>
-      )}
-
-      {live && (
-        <section className="card callscreen stack">
-          <div className="row spread">
-            <div className="row">
-              <span className="dot live" aria-hidden />
-              <strong>On call with {callerName}</strong>
-              <span className="pill">{conversation.isSpeaking ? "AI speaking" : "Listening"}</span>
-            </div>
-            <span className="timer">{clock(elapsed)}</span>
-          </div>
-          {maxSeconds > 0 && <p className="small muted">Your balance covers up to {clock(maxSeconds)}.</p>}
-          {wrapping && <p className="small">Wrapping up. The call ends after the AI says goodbye.</p>}
-          <div className="row">
-            <button className="secondary" onClick={requestWrapUp} disabled={wrapping}>
-              Wrap up
-            </button>
-            <button className="secondary" onClick={() => setMuted(!muted)}>
-              {muted ? "Unmute AI's ears" : "Mute AI's ears"}
-            </button>
-            <button className="danger" onClick={() => conversation.endSession()}>
-              End now
-            </button>
-          </div>
-          {lines.length > 0 && (
-            <div className="chat">
-              {lines.map((line) => (
-                <div key={line.key} className={`bubble ${line.role === "agent" ? "user" : "agent"}`}>
-                  {line.message}
-                </div>
+            <label htmlFor="voice">Voice</label>
+            <select id="voice" value={voiceId} onChange={(e) => setVoiceId(e.target.value)}>
+              {voices.map((v) => (
+                <option key={v.id} value={v.id}>
+                  {v.name} · {v.description}
+                </option>
               ))}
-            </div>
-          )}
-          {error && <p className="error">{error}</p>}
-        </section>
-      )}
+            </select>
+          </div>
+          <div>
+            <label htmlFor="language">Language</label>
+            <select id="language" value={language} onChange={(e) => setLanguage(e.target.value)}>
+              {LANGUAGES.map((l) => (
+                <option key={l.code} value={l.code}>
+                  {l.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+        <div className="tip">
+          <span>💡</span>
+          <span>
+            Call {callerName} from your phone and put it on <strong>speaker</strong> next to this device. Use the
+            device&apos;s speakers, not headphones. When they pick up, tap Start call.
+          </span>
+        </div>
+        {error && <p className="error">{error}</p>}
+        {note && <p className="small">{note}</p>}
+        <div className="row spread">
+          <span className="small muted">Balance {usd(credit)}</span>
+          <button className="big-btn" onClick={start}>
+            <PhoneIcon size={18} /> Start call
+          </button>
+        </div>
+      </section>
 
-      <section className="card">
-        <h2>Calls with {callerName}</h2>
-        {calls.filter((c) => c.conversation_id).length === 0 ? (
-          <p className="muted">No calls yet.</p>
+      <div className="section-head">
+        <h2>Call history</h2>
+        <span className="small faint">{pastCalls.length} calls</span>
+      </div>
+      <section className="card" style={{ marginTop: 10 }}>
+        {pastCalls.length === 0 ? (
+          <div className="empty">
+            <span className="emoji">🎙️</span>
+            No calls with {callerName} yet.
+          </div>
         ) : (
-          <ul className="list">
-            {calls
-              .filter((c) => c.conversation_id)
-              .map((c) => (
-                <li key={c.id}>
-                  <details>
-                    <summary>
-                      {new Date(c.created_at * 1000).toLocaleString()} · {clock(c.duration_secs)} · {usd(c.charged_micros)}
-                      {c.status === "failed" && " · failed"}
-                    </summary>
+          <ul className="history">
+            {pastCalls.map((c) => (
+              <li key={c.id}>
+                <details>
+                  <summary className="row spread">
+                    <span>
+                      <span className="chev">›</span> <strong>{new Date(c.created_at * 1000).toLocaleDateString()}</strong>{" "}
+                      <span className="small muted">{new Date(c.created_at * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
+                    </span>
+                    <span className="row" style={{ gap: 8 }}>
+                      {c.status === "failed" && <span className="pill red">Failed</span>}
+                      <span className="pill">{clock(c.duration_secs)}</span>
+                      <span className="pill">{usd(c.charged_micros)}</span>
+                    </span>
+                  </summary>
+                  <div className="stack" style={{ paddingBottom: 16 }}>
                     {c.topics && (
                       <p className="small">
-                        <strong>Topics:</strong> {c.topics}
+                        <span className="faint">Topics · </span>
+                        {c.topics}
                       </p>
                     )}
-                    {c.summary && (
-                      <p className="small">
-                        <strong>Summary:</strong> {c.summary}
-                      </p>
+                    {c.summary && <div className="memory">{c.summary}</div>}
+                    {c.transcript.length > 0 && (
+                      <Transcript lines={c.transcript.map((l, i) => ({ ...l, key: i }))} callerName={callerName} />
                     )}
-                    <div className="chat">
-                      {c.transcript.map((line, i) => (
-                        <div key={i} className={`bubble ${line.role === "agent" ? "user" : "agent"}`}>
-                          {line.message}
-                        </div>
-                      ))}
-                    </div>
-                  </details>
-                </li>
-              ))}
+                  </div>
+                </details>
+              </li>
+            ))}
           </ul>
         )}
       </section>
