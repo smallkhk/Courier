@@ -38,6 +38,7 @@ function expireOld(): void {
 }
 
 export function createDeposit(accountId: string, network: Network, wholeUsd: number): Deposit {
+  if (!config.topupsEnabled) throw new PaymentError("Top-ups are paused right now. Please try again later.");
   if (!walletFor(network)) throw new PaymentError("That network isn't available right now");
   if (!Number.isInteger(wholeUsd) || wholeUsd < config.minDepositUsd || wholeUsd > 10_000) {
     throw new PaymentError(`Enter a whole amount between ${config.minDepositUsd} and 10000 USDT`);
@@ -212,5 +213,50 @@ export function approveReview(depositId: string): void {
     ).run(d.tx_hash, d.network, depositId, micros, now());
     db.prepare("UPDATE deposits SET status = 'credited', credited_at = ? WHERE id = ?").run(now(), depositId);
     applyCredit(d.account_id, micros, "deposit", `USDT ${d.network.toUpperCase()} ${d.tx_hash} (reviewed)`, 0);
+  });
+}
+
+// For admins: refuse a top-up that is waiting or under review.
+export function rejectDeposit(depositId: string, reason: string): { accountId: string } {
+  const d = getDb().prepare("SELECT account_id, status FROM deposits WHERE id = ?").get(depositId) as
+    | { account_id: string; status: string }
+    | undefined;
+  if (!d) throw new PaymentError("Top-up not found");
+  if (d.status === "credited") throw new PaymentError("This top-up was already credited. Deduct credit from the user instead.");
+  getDb()
+    .prepare("UPDATE deposits SET status = 'rejected', note = ? WHERE id = ?")
+    .run(reason || "Rejected by support", depositId);
+  return { accountId: d.account_id };
+}
+
+// For admins: credit a top-up by hand after checking the payment yourself,
+// e.g. on the block explorer. The hash, if given, can't be used again.
+export function markDepositPaid(depositId: string, amountUsd: number, rawHash: string): { accountId: string; micros: number } {
+  return transaction(() => {
+    const db = getDb();
+    const d = db.prepare("SELECT account_id, network, status, tx_hash FROM deposits WHERE id = ?").get(depositId) as
+      | { account_id: string; network: Network; status: string; tx_hash: string | null }
+      | undefined;
+    if (!d) throw new PaymentError("Top-up not found");
+    if (d.status === "credited") throw new PaymentError("This top-up was already credited");
+    if (!Number.isFinite(amountUsd) || amountUsd <= 0 || amountUsd > 100_000) throw new PaymentError("Enter the amount received");
+    const hash = rawHash.trim() ? normalizeHash(d.network, rawHash) : d.tx_hash;
+    if (rawHash.trim() && !hash) throw new PaymentError("That doesn't look like a transaction hash for this network");
+    const micros = Math.round(amountUsd * MICROS_PER_USD);
+    if (hash) {
+      if (db.prepare("SELECT 1 FROM chain_transfers WHERE tx_hash = ?").get(hash)) {
+        throw new PaymentError("That transaction has already been credited");
+      }
+      db.prepare(
+        "INSERT INTO chain_transfers (tx_hash, network, deposit_id, amount_micros, from_address, seen_at) VALUES (?, ?, ?, ?, '', ?)",
+      ).run(hash, d.network, depositId, micros, now());
+    }
+    db.prepare("UPDATE deposits SET status = 'credited', tx_hash = ?, credited_at = ?, note = 'Credited by support' WHERE id = ?").run(
+      hash,
+      now(),
+      depositId,
+    );
+    applyCredit(d.account_id, micros, "deposit", `USDT ${d.network.toUpperCase()} ${hash ?? "manual"} (by support)`, 0);
+    return { accountId: d.account_id, micros };
   });
 }

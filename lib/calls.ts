@@ -80,6 +80,7 @@ export async function startCall(
   accountId: string,
   input: { callerId: string; topics: string; voiceId: string; language: string },
 ): Promise<{ signedUrl: string; call: Call; maxSeconds: number }> {
+  if (!config.callsEnabled) throw new HttpError(503, "Calls are paused for maintenance. Please try again soon.");
   const caller = getCaller(accountId, input.callerId);
   if (!caller) throw new HttpError(404, "Caller not found");
   const profile = getProfile(accountId);

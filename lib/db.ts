@@ -1,7 +1,6 @@
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { DatabaseSync } from "node:sqlite";
-import { config } from "./config.ts";
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS accounts (
@@ -126,22 +125,50 @@ CREATE TABLE IF NOT EXISTS usage_events (
 );
 CREATE INDEX IF NOT EXISTS usage_events_account ON usage_events(account_id, created_at);
 
+-- Everything an admin does, for accountability.
+CREATE TABLE IF NOT EXISTS admin_log (
+  id TEXT PRIMARY KEY,
+  admin_email TEXT NOT NULL,
+  action TEXT NOT NULL,
+  target TEXT NOT NULL,
+  detail TEXT NOT NULL,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS admin_log_time ON admin_log(created_at);
+
 CREATE TABLE IF NOT EXISTS kv (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL
 );
 `;
 
+// Columns added after the first release. Each runs once on older databases.
+const MIGRATIONS: { table: string; column: string; ddl: string }[] = [
+  { table: "users", column: "is_admin", ddl: "ALTER TABLE users ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0" },
+  { table: "accounts", column: "blocked_at", ddl: "ALTER TABLE accounts ADD COLUMN blocked_at INTEGER" },
+  { table: "accounts", column: "block_reason", ddl: "ALTER TABLE accounts ADD COLUMN block_reason TEXT NOT NULL DEFAULT ''" },
+];
+
+function migrate(conn: DatabaseSync): void {
+  for (const m of MIGRATIONS) {
+    const columns = conn.prepare(`PRAGMA table_info(${m.table})`).all() as { name: string }[];
+    if (!columns.some((c) => c.name === m.column)) conn.exec(m.ddl);
+  }
+}
+
+const DATABASE_PATH = process.env.DATABASE_PATH || "./data/app.db";
+
 let db: DatabaseSync | undefined;
 
 export function getDb(): DatabaseSync {
   if (!db) {
-    if (config.databasePath !== ":memory:") {
-      mkdirSync(dirname(config.databasePath), { recursive: true });
+    if (DATABASE_PATH !== ":memory:") {
+      mkdirSync(dirname(DATABASE_PATH), { recursive: true });
     }
-    db = new DatabaseSync(config.databasePath);
+    db = new DatabaseSync(DATABASE_PATH);
     db.exec("PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;");
     db.exec(SCHEMA);
+    migrate(db);
   }
   return db;
 }

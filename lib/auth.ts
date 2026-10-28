@@ -1,4 +1,4 @@
-import { createHash, randomBytes, randomUUID, scryptSync, timingSafeEqual } from "node:crypto";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { cookies, headers } from "next/headers";
 import { config } from "./config.ts";
 import { getDb, now, transaction } from "./db.ts";
@@ -7,24 +7,13 @@ import { applyCredit } from "./repo.ts";
 const COOKIE = "session";
 const SESSION_SECONDS = 60 * 60 * 24 * 30;
 
-export type CurrentUser = { userId: string; accountId: string; email: string };
+export type CurrentUser = { userId: string; accountId: string; email: string; isAdmin: boolean };
 
 export { HttpError } from "./errors.ts";
 import { HttpError } from "./errors.ts";
 
-export function hashPassword(password: string): string {
-  const salt = randomBytes(16);
-  const hash = scryptSync(password, salt, 64);
-  return `scrypt$${salt.toString("hex")}$${hash.toString("hex")}`;
-}
-
-export function verifyPassword(password: string, stored: string): boolean {
-  const [scheme, saltHex, hashHex] = stored.split("$");
-  if (scheme !== "scrypt" || !saltHex || !hashHex) return false;
-  const expected = Buffer.from(hashHex, "hex");
-  const actual = scryptSync(password, Buffer.from(saltHex, "hex"), expected.length);
-  return timingSafeEqual(expected, actual);
-}
+export { hashPassword, verifyPassword } from "./passwords.ts";
+import { hashPassword } from "./passwords.ts";
 
 function hashToken(token: string): string {
   return createHash("sha256").update(token).digest("hex");
@@ -46,10 +35,25 @@ export function createAccount(email: string, password: string): string {
   return userId;
 }
 
-export function findUserByEmail(email: string): { id: string; password_hash: string } | undefined {
-  return getDb().prepare("SELECT id, password_hash FROM users WHERE email = ?").get(email) as
-    | { id: string; password_hash: string }
-    | undefined;
+export function findUserByEmail(
+  email: string,
+): { id: string; password_hash: string; blocked_at: number | null; block_reason: string } | undefined {
+  return getDb()
+    .prepare(
+      `SELECT u.id, u.password_hash, a.blocked_at, a.block_reason
+       FROM users u JOIN accounts a ON a.id = u.account_id WHERE u.email = ?`,
+    )
+    .get(email) as { id: string; password_hash: string; blocked_at: number | null; block_reason: string } | undefined;
+}
+
+// Emails listed in ADMIN_EMAILS are always admins, so the first admin can
+// get in before anyone has been promoted on the admin page.
+export function isBootstrapAdmin(email: string): boolean {
+  return (process.env.ADMIN_EMAILS ?? "")
+    .split(",")
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean)
+    .includes(email.toLowerCase());
 }
 
 export async function startSession(userId: string): Promise<void> {
@@ -79,13 +83,21 @@ export async function currentUser(): Promise<CurrentUser | null> {
   if (!token) return null;
   const row = getDb()
     .prepare(
-      `SELECT u.id AS userId, u.account_id AS accountId, u.email AS email, s.expires_at AS expiresAt
-       FROM sessions s JOIN users u ON u.id = s.user_id 
+      `SELECT u.id AS userId, u.account_id AS accountId, u.email AS email, u.is_admin AS isAdmin,
+         s.expires_at AS expiresAt, a.blocked_at AS blockedAt
+       FROM sessions s JOIN users u ON u.id = s.user_id JOIN accounts a ON a.id = u.account_id
        WHERE s.token_hash = ?`,
     )
-    .get(hashToken(token)) as (CurrentUser & { expiresAt: number }) | undefined;
-  if (!row || row.expiresAt < now()) return null;
-  return { userId: row.userId, accountId: row.accountId, email: row.email };
+    .get(hashToken(token)) as
+    | { userId: string; accountId: string; email: string; isAdmin: number; expiresAt: number; blockedAt: number | null }
+    | undefined;
+  if (!row || row.expiresAt < now() || row.blockedAt !== null) return null;
+  return {
+    userId: row.userId,
+    accountId: row.accountId,
+    email: row.email,
+    isAdmin: row.isAdmin === 1 || isBootstrapAdmin(row.email),
+  };
 }
 
 // For API routes: returns the signed-in user or throws 401. On requests that
@@ -101,5 +113,13 @@ export async function requireUser(request?: Request): Promise<CurrentUser> {
   }
   const user = await currentUser();
   if (!user) throw new HttpError(401, "Please sign in");
+  return user;
+}
+
+// For admin API routes. Non-admins get a 404 so the admin API doesn't
+// advertise itself.
+export async function requireAdmin(request?: Request): Promise<CurrentUser> {
+  const user = await requireUser(request);
+  if (!user.isAdmin) throw new HttpError(404, "Not found");
   return user;
 }

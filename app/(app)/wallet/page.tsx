@@ -4,7 +4,7 @@ import { pageUser } from "@/lib/page-auth.ts";
 import { enabledNetworks } from "@/lib/payments.ts";
 import { getCredit, listDeposits, listUsage } from "@/lib/repo.ts";
 
-const KIND_LABEL: Record<string, string> = { call: "Call", deposit: "Top-up", credit: "Credit" };
+const KIND_LABEL: Record<string, string> = { call: "Call", deposit: "Top-up", credit: "Credit", adjustment: "Adjustment" };
 
 export default async function WalletPage() {
   const user = await pageUser();
@@ -41,6 +41,7 @@ export default async function WalletPage() {
                   <td>
                     {KIND_LABEL[e.kind] ?? e.kind}
                     {e.kind === "call" && ` · ${Math.floor(e.quantity / 60)}m ${e.quantity % 60}s`}
+                    {(e.kind === "credit" || e.kind === "adjustment") && e.detail && ` · ${e.detail}`}
                   </td>
                   <td className={e.amount_micros < 0 ? "amount-neg" : "amount-pos"}>{formatUsd(e.amount_micros)}</td>
                 </tr>

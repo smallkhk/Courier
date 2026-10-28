@@ -1,33 +1,61 @@
-function num(name: string, fallback: number): number {
-  const raw = process.env[name];
-  if (raw === undefined || raw === "") return fallback;
-  const value = Number(raw);
-  if (!Number.isFinite(value) || value < 0) {
-    throw new Error(`${name} must be a non-negative number`);
-  }
-  return value;
-}
+import { getBool, getNumber, getSetting } from "./settings.ts";
 
 // Money is stored as integer micro-dollars (1 USD = 1 USDT = 1_000_000) so
 // per-second charges and 6-decimal USDT amounts never lose precision.
 export const MICROS_PER_USD = 1_000_000;
 
+const usd = (key: string) => Math.round(getNumber(key) * MICROS_PER_USD);
+
+// Live view of the site settings. Values come from the admin settings page,
+// falling back to environment variables, so read them at the time of use.
 export const config = {
-  platformName: process.env.PLATFORM_NAME || "CallMate",
-  databasePath: process.env.DATABASE_PATH || "./data/app.db",
-  pricePerMinuteMicros: Math.round(num("PRICE_PER_MINUTE_USD", 0.2) * MICROS_PER_USD),
-  signupCreditMicros: Math.round(num("SIGNUP_CREDIT_USD", 0) * MICROS_PER_USD),
-  maxCallSeconds: Math.max(60, Math.round(num("MAX_CALL_SECONDS", 1800))),
+  get platformName() {
+    return getSetting("platformName");
+  },
+  get announcement() {
+    return getSetting("announcement");
+  },
+  get signupsOpen() {
+    return getBool("signupsOpen");
+  },
+  get callsEnabled() {
+    return getBool("callsEnabled");
+  },
+  get topupsEnabled() {
+    return getBool("topupsEnabled");
+  },
+  get pricePerMinuteMicros() {
+    return Math.max(1, usd("pricePerMinuteUsd"));
+  },
+  get costPerMinuteMicros() {
+    return usd("costPerMinuteUsd");
+  },
+  get signupCreditMicros() {
+    return usd("signupCreditUsd");
+  },
+  get maxCallSeconds() {
+    return Math.max(60, Math.round(getNumber("maxCallSeconds")));
+  },
   // The AI that does the talking, run by ElevenLabs and billed on the
   // ElevenLabs invoice. Fast and cheap, which matters on a live call.
-  agentLlm: process.env.AGENT_LLM || "claude-haiku-5-5",
-  ttsModel: process.env.TTS_MODEL || "eleven_flash_v2_5",
-  maxClonesPerAccount: Math.round(num("MAX_CLONES_PER_ACCOUNT", 1)),
-  minDepositUsd: Math.max(1, Math.round(num("MIN_DEPOSIT_USD", 3))),
+  get agentLlm() {
+    return getSetting("agentLlm");
+  },
+  get ttsModel() {
+    return getSetting("ttsModel");
+  },
+  get maxClonesPerAccount() {
+    return Math.max(0, Math.round(getNumber("maxClonesPerAccount")));
+  },
+  get minDepositUsd() {
+    return Math.max(1, Math.round(getNumber("minDepositUsd")));
+  },
   depositWindowSeconds: 60 * 60,
-  wallets: {
-    trc20: process.env.USDT_TRC20_ADDRESS || "",
-    bep20: (process.env.USDT_BEP20_ADDRESS || "").toLowerCase(),
+  get wallets() {
+    return {
+      trc20: getSetting("usdtTrc20Address"),
+      bep20: getSetting("usdtBep20Address").toLowerCase(),
+    };
   },
 };
 

@@ -74,7 +74,7 @@ export type Deposit = {
   id: string;
   network: "trc20" | "bep20";
   amount_micros: number;
-  status: "pending" | "credited" | "expired" | "review";
+  status: "pending" | "credited" | "expired" | "review" | "rejected";
   tx_hash: string | null;
   note: string;
   created_at: number;

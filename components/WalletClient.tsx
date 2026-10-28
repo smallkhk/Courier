@@ -22,6 +22,7 @@ const STATUS_PILL: Record<Deposit["status"], string> = {
   credited: "green",
   expired: "",
   review: "amber",
+  rejected: "red",
 };
 
 const QUICK_AMOUNTS = [5, 10, 20, 50];
@@ -31,6 +32,7 @@ const STATUS_LABEL: Record<Deposit["status"], string> = {
   credited: "Credited",
   expired: "Expired",
   review: "Being checked by support",
+  rejected: "Rejected",
 };
 
 function usdt(micros: number): string {

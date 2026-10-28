@@ -8,6 +8,7 @@ export const POST = route(async (request: Request) => {
   const user = await requireUser(request);
   const profile = getProfile(user.accountId);
   if (!profile.full_name.trim()) throw new HttpError(409, "Add your name on the My Profile page first.");
+  if (config.maxClonesPerAccount === 0) throw new HttpError(403, "Voice cloning is turned off right now.");
   if (countClones(user.accountId) >= config.maxClonesPerAccount) {
     throw new HttpError(409, "You've reached your cloned voice limit. Delete your clone to make a new one.");
   }

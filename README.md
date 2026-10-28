@@ -49,6 +49,35 @@ npm run approve-deposit -- <deposit-id>     # credit a top-up that is waiting fo
 5. Every transaction hash is credited only once.
 6. If the amount received is different (usually an exchange took its fee out), the top-up goes to **review**. Confirm with the customer that it's theirs, then run `npm run approve-deposit -- <id>`.
 
+## Admin panel (`/admin`)
+
+1. Put your email in `ADMIN_EMAILS` in `.env`.
+2. Sign up with that email. An **Admin** button then appears in the header.
+
+Anyone who isn't an admin gets a normal "page not found" on `/admin` and on every admin API.
+
+- **Overview:** users, USDT received, call revenue, estimated profit after ElevenLabs cost, unused balances, top-ups waiting or needing review, and daily revenue and deposit charts.
+- **Users:** search and filter (paying, blocked, admins). Each user has a full page:
+  - Add or remove credit, with a reason they see in their history.
+  - Block (signs them out and stops sign-in, showing your reason) or unblock.
+  - Make admin or remove admin.
+  - Set a new password, or sign them out everywhere.
+  - Delete the account. This also deletes their cloned voice and agent on ElevenLabs.
+  - See their profile, callers, voices, top-ups, calls with transcripts, and full balance history.
+- **Payments:** every top-up, with filters. Each transaction hash links to Tronscan or BscScan. Actions:
+  - **Approve** a top-up under review.
+  - **Mark paid**, entering the amount received and optionally the hash, which can't then be reused.
+  - **Reject**.
+- **Calls:** every call on the site, with topics, summary and full transcript.
+- **Voices:** every saved and cloned voice. Removing a clone deletes it from ElevenLabs too.
+- **Settings**, live as soon as you save:
+  - Site name and an announcement banner shown to all users.
+  - Sign-ups on/off, calls on/off (maintenance mode), top-ups on/off.
+  - Price per minute, your cost per minute (for the profit figure), free sign-up credit, minimum top-up, longest call.
+  - USDT TRC20 and BEP20 wallet addresses.
+  - AI model, voice model, and cloned voices per account (0 turns cloning off).
+- **Activity log:** every admin action, with who did it, to whom and when.
+
 ## What the AI won't do
 
 Built into every call's instructions:

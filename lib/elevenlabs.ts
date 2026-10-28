@@ -180,3 +180,7 @@ export async function transcribe(sample: Blob, filename: string): Promise<string
   const result = await call<{ text: string }>("/speech-to-text", { method: "POST", body: form });
   return result.text ?? "";
 }
+
+export async function deleteAgent(agentId: string): Promise<void> {
+  await call(`/convai/agents/${encodeURIComponent(agentId)}`, { method: "DELETE" });
+}

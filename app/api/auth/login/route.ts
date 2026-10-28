@@ -13,6 +13,9 @@ export const POST = route(async (request: Request) => {
   if (!user || !verifyPassword(body.password, user.password_hash)) {
     throw new HttpError(401, "Wrong email or password");
   }
+  if (user.blocked_at !== null) {
+    throw new HttpError(403, `This account is suspended.${user.block_reason ? ` Reason: ${user.block_reason}` : ""}`);
+  }
   await startSession(user.id);
   return json({ ok: true });
 });
