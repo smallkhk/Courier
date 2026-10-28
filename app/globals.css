@@ -88,3 +88,28 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
 td, th { text-align: left; padding: 6px 4px; border-top: 1px solid var(--border); }
 details summary { cursor: pointer; }
+
+.topbar { background: var(--surface); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 10; }
+.topbar-inner { max-width: 880px; margin: 0 auto; padding: 10px 16px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.brand { font-weight: 800; color: var(--text); text-decoration: none; margin-right: auto; }
+.nav { display: flex; gap: 14px; flex-wrap: wrap; font-size: 0.92rem; }
+.nav a { color: var(--muted); text-decoration: none; }
+.nav a:hover { color: var(--text); }
+.eyebrow { text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.8rem; color: var(--accent); font-weight: 700; margin: 24px 0 4px; }
+.hero { font-size: clamp(1.8rem, 6vw, 2.6rem); line-height: 1.15; margin: 0 0 12px; }
+.lead { font-size: 1.05rem; max-width: 60ch; }
+.steps { padding-left: 20px; }
+.steps li { margin: 6px 0; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.big { font-size: 1.6rem; font-weight: 800; }
+.callscreen { border: 2px solid var(--accent); }
+.timer { font-variant-numeric: tabular-nums; font-size: 1.4rem; font-weight: 700; }
+.voice-card { border: 1px solid var(--border); border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+.voice-card audio { width: 100%; height: 32px; }
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; overflow-wrap: anywhere; }
+.qr { width: 180px; height: 180px; background: #fff; padding: 8px; border-radius: 8px; }
+.copy { display: flex; gap: 8px; align-items: center; }
+.copy code { flex: 1; min-width: 0; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 8px; overflow-wrap: anywhere; }
+.rec { width: 14px; height: 14px; border-radius: 50%; background: var(--danger); display: inline-block; animation: pulse 1s infinite; }
+@keyframes pulse { 50% { opacity: 0.3; } }
+.script { background: var(--bg); border-left: 4px solid var(--accent); padding: 12px; border-radius: 6px; font-size: 1.05rem; }

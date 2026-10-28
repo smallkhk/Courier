@@ -17,7 +17,7 @@ export function AuthForm() {
     setError("");
     try {
       await api(`/api/auth/${mode}`, { method: "POST", body: JSON.stringify(Object.fromEntries(form)) });
-      router.push("/dashboard");
+      router.push(mode === "signup" ? "/profile" : "/home");
       router.refresh();
     } catch (err) {
       setError((err as Error).message);
@@ -28,12 +28,6 @@ export function AuthForm() {
   return (
     <form className="card stack" onSubmit={submit}>
       <h2>{mode === "signup" ? "Create an account" : "Sign in"}</h2>
-      {mode === "signup" && (
-        <div>
-          <label htmlFor="accountName">Company or team name</label>
-          <input id="accountName" name="accountName" required maxLength={100} />
-        </div>
-      )}
       <div>
         <label htmlFor="email">Email</label>
         <input id="email" name="email" type="email" autoComplete="email" required />

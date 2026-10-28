@@ -8,24 +8,34 @@ function num(name: string, fallback: number): number {
   return value;
 }
 
-// Money is stored as integer micro-dollars (1 USD = 1_000_000) so that
-// per-second and per-token charges never lose precision.
+// Money is stored as integer micro-dollars (1 USD = 1 USDT = 1_000_000) so
+// per-second charges and 6-decimal USDT amounts never lose precision.
 export const MICROS_PER_USD = 1_000_000;
 
 export const config = {
-  platformName: process.env.PLATFORM_NAME || "Practice Voice",
+  platformName: process.env.PLATFORM_NAME || "CallMate",
   databasePath: process.env.DATABASE_PATH || "./data/app.db",
-  pricePerMinuteMicros: Math.round(num("PRICE_PER_MINUTE_USD", 0.05) * MICROS_PER_USD),
-  llmMarkup: num("LLM_MARKUP", 1.5),
-  signupCreditMicros: Math.round(num("SIGNUP_CREDIT_USD", 1) * MICROS_PER_USD),
-  maxCallSeconds: Math.max(60, Math.round(num("MAX_CALL_SECONDS", 900))),
-  claudeModel: "claude-opus-5-5",
-  // Claude Opus 5.5 list price, micro-dollars per token ($4 / $20 per million).
-  claudeInputMicrosPerToken: 4,
-  claudeOutputMicrosPerToken: 20,
+  pricePerMinuteMicros: Math.round(num("PRICE_PER_MINUTE_USD", 0.2) * MICROS_PER_USD),
+  signupCreditMicros: Math.round(num("SIGNUP_CREDIT_USD", 0) * MICROS_PER_USD),
+  maxCallSeconds: Math.max(60, Math.round(num("MAX_CALL_SECONDS", 1800))),
+  // The AI that does the talking, run by ElevenLabs and billed on the
+  // ElevenLabs invoice. Fast and cheap, which matters on a live call.
+  agentLlm: process.env.AGENT_LLM || "claude-haiku-5-5",
+  ttsModel: process.env.TTS_MODEL || "eleven_flash_v2_5",
+  maxClonesPerAccount: Math.round(num("MAX_CLONES_PER_ACCOUNT", 1)),
+  minDepositUsd: Math.max(1, Math.round(num("MIN_DEPOSIT_USD", 3))),
+  depositWindowSeconds: 60 * 60,
+  wallets: {
+    trc20: process.env.USDT_TRC20_ADDRESS || "",
+    bep20: (process.env.USDT_BEP20_ADDRESS || "").toLowerCase(),
+  },
 };
 
 export function formatUsd(micros: number): string {
   const sign = micros < 0 ? "-" : "";
   return `${sign}$${(Math.abs(micros) / MICROS_PER_USD).toFixed(2)}`;
+}
+
+export function minutesFor(micros: number): number {
+  return Math.max(0, Math.floor(micros / config.pricePerMinuteMicros));
 }

@@ -5,13 +5,12 @@ import { json, readJson, route } from "@/lib/http.ts";
 const Body = z.object({
   email: z.string().trim().toLowerCase().email("Enter a valid email"),
   password: z.string().min(10, "Password must be at least 10 characters").max(200),
-  accountName: z.string().trim().min(1, "Enter your company or team name").max(100),
 });
 
 export const POST = route(async (request: Request) => {
   const body = await readJson(request, Body);
   if (findUserByEmail(body.email)) throw new HttpError(409, "An account with that email already exists");
-  const userId = createAccount(body.email, body.password, body.accountName);
+  const userId = createAccount(body.email, body.password);
   await startSession(userId);
   return json({ ok: true });
 });

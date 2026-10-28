@@ -11,18 +11,21 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "test": "node --experimental-strip-types --test tests/*.test.ts",
-    "add-credit": "node --env-file-if-exists=.env --experimental-strip-types scripts/add-credit.ts"
+    "add-credit": "node --env-file-if-exists=.env --experimental-strip-types scripts/add-credit.ts",
+    "watch-payments": "node --env-file-if-exists=.env --experimental-strip-types scripts/watch-payments.ts",
+    "approve-deposit": "node --env-file-if-exists=.env --experimental-strip-types scripts/approve-deposit.ts"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^1.3.0",
     "@elevenlabs/react": "^1.20.1",
     "next": "^16.4.3",
+    "qrcode": "^1.5.4",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "zod": "^4.6.7"
   },
   "devDependencies": {
     "@types/node": "^22.20.5",
+    "@types/qrcode": "^1.5.6",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "typescript": "^5.9.3"

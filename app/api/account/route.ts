@@ -7,7 +7,6 @@ export const GET = route(async () => {
   const user = await requireUser();
   return json({
     email: user.email,
-    accountName: user.accountName,
     creditMicros: getCredit(user.accountId),
     pricePerMinuteMicros: config.pricePerMinuteMicros,
     usage: listUsage(user.accountId),

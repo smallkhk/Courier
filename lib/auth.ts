@@ -7,16 +7,10 @@ import { applyCredit } from "./repo.ts";
 const COOKIE = "session";
 const SESSION_SECONDS = 60 * 60 * 24 * 30;
 
-export type CurrentUser = { userId: string; accountId: string; email: string; accountName: string };
+export type CurrentUser = { userId: string; accountId: string; email: string };
 
-export class HttpError extends Error {
-  constructor(
-    public status: number,
-    message: string,
-  ) {
-    super(message);
-  }
-}
+export { HttpError } from "./errors.ts";
+import { HttpError } from "./errors.ts";
 
 export function hashPassword(password: string): string {
   const salt = randomBytes(16);
@@ -36,16 +30,12 @@ function hashToken(token: string): string {
   return createHash("sha256").update(token).digest("hex");
 }
 
-export function createAccount(email: string, password: string, accountName: string): string {
+export function createAccount(email: string, password: string): string {
   const userId = randomUUID();
   transaction(() => {
     const db = getDb();
     const accountId = randomUUID();
-    db.prepare("INSERT INTO accounts (id, name, credit_micros, created_at) VALUES (?, ?, 0, ?)").run(
-      accountId,
-      accountName,
-      now(),
-    );
+    db.prepare("INSERT INTO accounts (id, credit_micros, created_at) VALUES (?, 0, ?)").run(accountId, now());
     db.prepare(
       "INSERT INTO users (id, account_id, email, password_hash, created_at) VALUES (?, ?, ?, ?, ?)",
     ).run(userId, accountId, email, hashPassword(password), now());
@@ -89,13 +79,13 @@ export async function currentUser(): Promise<CurrentUser | null> {
   if (!token) return null;
   const row = getDb()
     .prepare(
-      `SELECT u.id AS userId, u.account_id AS accountId, u.email AS email, a.name AS accountName, s.expires_at AS expiresAt
-       FROM sessions s JOIN users u ON u.id = s.user_id JOIN accounts a ON a.id = u.account_id
+      `SELECT u.id AS userId, u.account_id AS accountId, u.email AS email, s.expires_at AS expiresAt
+       FROM sessions s JOIN users u ON u.id = s.user_id 
        WHERE s.token_hash = ?`,
     )
     .get(hashToken(token)) as (CurrentUser & { expiresAt: number }) | undefined;
   if (!row || row.expiresAt < now()) return null;
-  return { userId: row.userId, accountId: row.accountId, email: row.email, accountName: row.accountName };
+  return { userId: row.userId, accountId: row.accountId, email: row.email };
 }
 
 // For API routes: returns the signed-in user or throws 401. On requests that

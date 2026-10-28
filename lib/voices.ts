@@ -1,29 +1,31 @@
-// Customers pick from this fixed list. There is deliberately no voice cloning:
-// adding a cloned voice needs a consent check from the person whose voice it
-// is, which this app does not have yet.
-export type Voice = { id: string; name: string; description: string };
+import { listSavedVoices } from "./repo.ts";
 
-const DEFAULT_VOICES: Voice[] = [
-  { id: "21m00Tcm4TlvDq8ikWAM", name: "Rachel", description: "Calm, female, American" },
-  { id: "EXAVITQu4vr4xnAE8fKL", name: "Sarah", description: "Soft, female, American" },
-  { id: "pNInz6obpgDQGcFmaJgB", name: "Adam", description: "Deep, male, American" },
-  { id: "TxGEqnHWrfWFTfGW9XjX", name: "Josh", description: "Young, male, American" },
-  { id: "ErXwobaYiN019PkySvjV", name: "Antoni", description: "Warm, male, American" },
-  { id: "AZnzlk1XvdvUeBnXmlld", name: "Domi", description: "Strong, female, American" },
+// ElevenLabs premade voices every account can use. Customers can add more
+// from the voice library, or clone their own voice, on the Voices page.
+export type Voice = { id: string; name: string; description: string; previewUrl?: string; source: string };
+
+export const DEFAULT_VOICES: Voice[] = [
+  { id: "21m00Tcm4TlvDq8ikWAM", name: "Rachel", description: "Calm, female, American", source: "default" },
+  { id: "EXAVITQu4vr4xnAE8fKL", name: "Sarah", description: "Soft, female, American", source: "default" },
+  { id: "AZnzlk1XvdvUeBnXmlld", name: "Domi", description: "Strong, female, American", source: "default" },
+  { id: "pNInz6obpgDQGcFmaJgB", name: "Adam", description: "Deep, male, American", source: "default" },
+  { id: "TxGEqnHWrfWFTfGW9XjX", name: "Josh", description: "Young, male, American", source: "default" },
+  { id: "ErXwobaYiN019PkySvjV", name: "Antoni", description: "Warm, male, American", source: "default" },
 ];
 
-function loadVoices(): Voice[] {
-  const raw = process.env.VOICES_JSON;
-  if (!raw) return DEFAULT_VOICES;
-  const parsed = JSON.parse(raw) as Voice[];
-  if (!Array.isArray(parsed) || parsed.length === 0 || parsed.some((v) => !v.id || !v.name)) {
-    throw new Error("VOICES_JSON must be a non-empty array of {id, name, description}");
-  }
-  return parsed;
+// Every voice this account may put on a call: the defaults plus its own
+// saved and cloned voices. Nobody can use another account's cloned voice.
+export function voicesFor(accountId: string): Voice[] {
+  const saved = listSavedVoices(accountId).map((v) => ({
+    id: v.voice_id,
+    name: v.name,
+    description: v.source === "clone" ? "Your cloned voice" : v.description,
+    previewUrl: v.preview_url || undefined,
+    source: v.source,
+  }));
+  return [...saved, ...DEFAULT_VOICES];
 }
 
-export const VOICES = loadVoices();
-
-export function isAllowedVoice(id: string): boolean {
-  return VOICES.some((voice) => voice.id === id);
+export function isVoiceAllowed(accountId: string, voiceId: string): boolean {
+  return voicesFor(accountId).some((v) => v.id === voiceId);
 }

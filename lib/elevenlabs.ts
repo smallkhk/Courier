@@ -1,9 +1,8 @@
-// Thin wrapper over the ElevenLabs Agents REST API. Each saved scenario gets
-// its own agent whose prompt and voice are set here on the server, so the
-// browser only ever receives a short-lived signed URL and cannot swap in a
-// prompt that skipped the save-time safety check.
+// Thin wrapper over the ElevenLabs REST API. Each account has one agent. Its
+// prompt, voice and limits are set here on the server right before every
+// call, so the browser only ever receives a short-lived signed URL and can't
+// change what the AI is told.
 import { config } from "./config.ts";
-import { buildAgentPrompt } from "./prompts.ts";
 
 const BASE = "https://api.elevenlabs.io/v1";
 
@@ -13,12 +12,17 @@ export function elevenLabsConfigured(): boolean {
   return Boolean(process.env.ELEVENLABS_API_KEY);
 }
 
+function key(): string {
+  const value = process.env.ELEVENLABS_API_KEY;
+  if (!value) throw new ElevenLabsError("ELEVENLABS_API_KEY is not set");
+  return value;
+}
+
 async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const key = process.env.ELEVENLABS_API_KEY;
-  if (!key) throw new ElevenLabsError("ELEVENLABS_API_KEY is not set");
+  const isForm = init.body instanceof FormData;
   const response = await fetch(`${BASE}${path}`, {
     ...init,
-    headers: { "xi-api-key": key, "Content-Type": "application/json", ...init.headers },
+    headers: { "xi-api-key": key(), ...(isForm ? {} : { "Content-Type": "application/json" }), ...init.headers },
     cache: "no-store",
   });
   if (!response.ok) {
@@ -29,41 +33,44 @@ async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
   return (await response.json()) as T;
 }
 
-type AgentFields = { name: string; prompt: string; firstMessage: string; voiceId: string };
+// ------------------------------------------------------------------- agent
 
-function agentBody(tag: string, fields: AgentFields) {
+export type AgentSettings = {
+  prompt: string;
+  firstMessage: string;
+  language: string;
+  voiceId: string;
+  maxDurationSeconds: number;
+};
+
+function agentBody(name: string, s: AgentSettings) {
   return {
-    name: `${fields.name.slice(0, 80)} [${tag}]`,
+    name,
     conversation_config: {
       agent: {
-        first_message: fields.firstMessage,
-        language: "en",
-        prompt: { prompt: buildAgentPrompt(fields.prompt) },
+        first_message: s.firstMessage,
+        language: s.language,
+        prompt: { prompt: s.prompt, llm: config.agentLlm },
       },
-      tts: { voice_id: fields.voiceId },
-      conversation: { max_duration_seconds: config.maxCallSeconds },
+      tts: { voice_id: s.voiceId, model_id: config.ttsModel },
+      conversation: { max_duration_seconds: s.maxDurationSeconds },
     },
   };
 }
 
-// tag identifies the scenario in the ElevenLabs dashboard (account:scenario).
-export async function createAgent(tag: string, fields: AgentFields): Promise<string> {
+export async function createAgent(name: string, s: AgentSettings): Promise<string> {
   const result = await call<{ agent_id: string }>("/convai/agents/create", {
     method: "POST",
-    body: JSON.stringify(agentBody(tag, fields)),
+    body: JSON.stringify(agentBody(name, s)),
   });
   return result.agent_id;
 }
 
-export async function updateAgent(agentId: string, tag: string, fields: AgentFields): Promise<void> {
+export async function updateAgent(agentId: string, name: string, s: AgentSettings): Promise<void> {
   await call(`/convai/agents/${encodeURIComponent(agentId)}`, {
     method: "PATCH",
-    body: JSON.stringify(agentBody(tag, fields)),
+    body: JSON.stringify(agentBody(name, s)),
   });
-}
-
-export async function deleteAgent(agentId: string): Promise<void> {
-  await call(`/convai/agents/${encodeURIComponent(agentId)}`, { method: "DELETE" });
 }
 
 export async function getSignedUrl(agentId: string): Promise<string> {
@@ -73,24 +80,26 @@ export async function getSignedUrl(agentId: string): Promise<string> {
   return result.signed_url;
 }
 
+// ----------------------------------------------------------- conversations
+
+export type ConversationStatus = "initiated" | "in-progress" | "processing" | "done" | "failed";
+
 export type ConversationSummary = {
   conversation_id: string;
-  status: "initiated" | "in-progress" | "processing" | "done" | "failed";
+  status: ConversationStatus;
   call_duration_secs: number;
   start_time_unix_secs: number;
 };
 
-export async function listConversations(agentId: string, maxPages = 10): Promise<ConversationSummary[]> {
+export async function listConversations(agentId: string, maxPages = 5): Promise<ConversationSummary[]> {
   const all: ConversationSummary[] = [];
   let cursor: string | null | undefined;
   for (let page = 0; page < maxPages; page++) {
     const query = new URLSearchParams({ agent_id: agentId, page_size: "100" });
     if (cursor) query.set("cursor", cursor);
-    const result = await call<{
-      conversations: ConversationSummary[];
-      has_more: boolean;
-      next_cursor?: string | null;
-    }>(`/convai/conversations?${query}`);
+    const result = await call<{ conversations: ConversationSummary[]; has_more: boolean; next_cursor?: string | null }>(
+      `/convai/conversations?${query}`,
+    );
     all.push(...result.conversations);
     if (!result.has_more || !result.next_cursor) break;
     cursor = result.next_cursor;
@@ -100,11 +109,74 @@ export async function listConversations(agentId: string, maxPages = 10): Promise
 
 export type ConversationDetail = {
   agent_id: string;
-  status: ConversationSummary["status"];
+  status: ConversationStatus;
   transcript: { role: "user" | "agent"; message?: string | null }[];
-  metadata: { call_duration_secs: number; start_time_unix_secs?: number };
+  metadata: { call_duration_secs: number; start_time_unix_secs: number };
+  analysis?: { transcript_summary?: string } | null;
 };
 
 export async function getConversation(conversationId: string): Promise<ConversationDetail> {
   return call<ConversationDetail>(`/convai/conversations/${encodeURIComponent(conversationId)}`);
+}
+
+// ------------------------------------------------------------------ voices
+
+export type LibraryVoice = {
+  public_owner_id: string;
+  voice_id: string;
+  name: string;
+  accent: string;
+  gender: string;
+  age: string;
+  descriptive: string;
+  use_case: string;
+  language: string;
+  preview_url: string;
+  description: string;
+};
+
+export async function searchLibrary(filters: {
+  search?: string;
+  gender?: string;
+  accent?: string;
+  language?: string;
+  page?: number;
+}): Promise<{ voices: LibraryVoice[]; hasMore: boolean }> {
+  const query = new URLSearchParams({ page_size: "24", page: String(filters.page ?? 0), sort: "trending" });
+  for (const field of ["search", "gender", "accent", "language"] as const) {
+    if (filters[field]) query.set(field, filters[field]!);
+  }
+  const result = await call<{ voices: LibraryVoice[]; has_more: boolean }>(`/shared-voices?${query}`);
+  return { voices: result.voices, hasMore: result.has_more };
+}
+
+// Copies a library voice into our ElevenLabs account so agents can use it.
+export async function addLibraryVoice(publicOwnerId: string, voiceId: string, name: string): Promise<string> {
+  const result = await call<{ voice_id: string }>(
+    `/voices/add/${encodeURIComponent(publicOwnerId)}/${encodeURIComponent(voiceId)}`,
+    { method: "POST", body: JSON.stringify({ new_name: name.slice(0, 100) }) },
+  );
+  return result.voice_id;
+}
+
+export async function cloneVoice(name: string, description: string, sample: Blob, filename: string): Promise<string> {
+  const form = new FormData();
+  form.set("name", name);
+  form.set("description", description);
+  form.set("remove_background_noise", "true");
+  form.append("files", sample, filename);
+  const result = await call<{ voice_id: string }>("/voices/add", { method: "POST", body: form });
+  return result.voice_id;
+}
+
+export async function deleteVoice(voiceId: string): Promise<void> {
+  await call(`/voices/${encodeURIComponent(voiceId)}`, { method: "DELETE" });
+}
+
+export async function transcribe(sample: Blob, filename: string): Promise<string> {
+  const form = new FormData();
+  form.set("model_id", "scribe_v2");
+  form.append("file", sample, filename);
+  const result = await call<{ text: string }>("/speech-to-text", { method: "POST", body: form });
+  return result.text ?? "";
 }
