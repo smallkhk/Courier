@@ -34,6 +34,7 @@ export const SETTINGS: SettingDef[] = [
   { key: "usdtBep20Address", label: "USDT BEP20 wallet", help: "Your BNB Smart Chain address that receives payments. Empty turns BEP20 off.", kind: "bep20", env: "USDT_BEP20_ADDRESS", fallback: "", group: "Payments" },
   { key: "agentLlm", label: "AI model", help: "The model ElevenLabs runs for the conversation, e.g. claude-haiku-5-5 or claude-sonnet-5-5.", kind: "text", env: "AGENT_LLM", fallback: "claude-haiku-5-5", group: "AI and voice" },
   { key: "ttsModel", label: "Voice model", help: "ElevenLabs voice model, e.g. eleven_flash_v2_5 (fast, multilingual).", kind: "text", env: "TTS_MODEL", fallback: "eleven_flash_v2_5", group: "AI and voice" },
+  { key: "cloneCodeWordsRequired", label: "Require spoken code words for voice cloning", help: "When on, people must read the code words aloud before a clone is made. Turn off only for trusted cloning, then back on.", kind: "boolean", fallback: "true", group: "AI and voice" },
   { key: "maxClonesPerAccount", label: "Cloned voices per account", help: "0 turns voice cloning off.", kind: "integer", env: "MAX_CLONES_PER_ACCOUNT", fallback: "1", group: "AI and voice", min: 0 },
 ];
 

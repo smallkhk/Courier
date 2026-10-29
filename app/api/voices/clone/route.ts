@@ -15,8 +15,11 @@ export const POST = route(async (request: Request) => {
   if (countClones(user.accountId) >= config.maxClonesPerAccount) {
     throw new HttpError(409, "You've reached your cloned voice limit.");
   }
+  const checkWords = config.cloneCodeWordsRequired;
   const words = consentWords(user.accountId);
-  if (!words || words.length === 0) throw new HttpError(409, "Your consent script expired. Start the recording again.");
+  if (checkWords && (!words || words.length === 0)) {
+    throw new HttpError(409, "Your consent script expired. Start the recording again.");
+  }
 
   const form = await request.formData();
   const audio = form.get("audio");
@@ -27,11 +30,12 @@ export const POST = route(async (request: Request) => {
   if (audio.size > MAX_BYTES) throw new HttpError(400, "The recording is too large. Keep it under 3 minutes.");
   const filename = audio.type.includes("mp4") ? "sample.mp4" : "sample.webm";
 
-  const text = await transcribe(audio, filename);
+  // The code-word check can be switched off by an admin (Settings).
+  const text = checkWords ? await transcribe(audio, filename) : "skipped";
   if (!text.trim()) {
     throw new HttpError(422, "We couldn't hear anything in the recording. Check your microphone works and try again.");
   }
-  if (!transcriptHasWords(text, words)) {
+  if (checkWords && words && !transcriptHasWords(text, words)) {
     const found = matchedWords(text, words);
     const missing = words.filter((w) => !found.includes(w));
     console.warn("clone consent check failed", { words, heard: text.slice(0, 300) });

@@ -50,6 +50,9 @@ export const config = {
   get minDepositUsd() {
     return Math.max(1, Math.round(getNumber("minDepositUsd")));
   },
+  get cloneCodeWordsRequired() {
+    return getBool("cloneCodeWordsRequired");
+  },
   get changerEnabled() {
     return getBool("changerEnabled");
   },
