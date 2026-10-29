@@ -13,7 +13,8 @@ const WORDS = [
   "engine", "forest", "monkey", "tomato", "pencil", "camera", "rabbit", "kitchen", "button", "sugar",
 ];
 
-const TTL_SECONDS = 30 * 60;
+// Long enough to retry the same recording after a failed check.
+const TTL_SECONDS = 24 * 60 * 60;
 
 export function issueConsentScript(accountId: string, fullName: string, platformName: string): string {
   const words: string[] = [];
