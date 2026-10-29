@@ -106,3 +106,12 @@ test("clone consent needs at least three of the four code words", () => {
   assert.equal(transcriptHasWords("river orange candle", words), true);
   assert.equal(transcriptHasWords("river orange", words), false);
 });
+
+test("English agents get the English voice model, others the multilingual one", async () => {
+  const { agentTtsModel } = await import("../lib/elevenlabs.ts");
+  assert.equal(agentTtsModel("eleven_flash_v2_5", "en"), "eleven_flash_v2");
+  assert.equal(agentTtsModel("eleven_turbo_v2_5", "en"), "eleven_turbo_v2");
+  assert.equal(agentTtsModel("eleven_flash_v2_5", "fr"), "eleven_flash_v2_5");
+  assert.equal(agentTtsModel("eleven_flash_v2", "fr"), "eleven_flash_v2_5");
+  assert.equal(agentTtsModel("eleven_v4_turbo", "en"), "eleven_v4_turbo");
+});

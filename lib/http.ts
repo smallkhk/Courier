@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { currentUser } from "./auth.ts";
 import { ElevenLabsError } from "./elevenlabs.ts";
 import { HttpError } from "./errors.ts";
 
@@ -22,7 +23,11 @@ export function route<Args extends unknown[]>(
       }
       if (err instanceof ElevenLabsError) {
         console.error(err.message);
-        return json({ error: "The voice service isn't available right now. Please try again shortly." }, 502);
+        // Admins see ElevenLabs' own reason so they can fix the setup;
+        // customers get a plain message.
+        const user = await currentUser().catch(() => null);
+        const detail = user?.isAdmin ? ` (Admin only: ${err.message})` : "";
+        return json({ error: `The voice service isn't available right now. Please try again shortly.${detail}` }, 502);
       }
       console.error(err);
       return json({ error: "Something went wrong. Please try again." }, 500);

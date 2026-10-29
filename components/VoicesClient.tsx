@@ -203,8 +203,18 @@ function Library({ onSaved }: { onSaved: () => void }) {
 
 const MIN_SECONDS = 60;
 
+// Read after the consent statement. About a minute to a minute and a half
+// aloud, mixing questions, excitement and calm talk so the clone learns the
+// whole range of the voice.
+const PASSAGES = [
+  "Good morning! I hope your day is going well. Let me tell you about my weekend. On Saturday I woke up early, made some tea, and sat outside for a while just listening to the birds. Later, my cousin called and asked if I wanted to go to the market with her. Of course I said yes! We bought tomatoes, peppers, fresh fish and a big bag of rice. The traffic on the way back was terrible, but we laughed the whole time. Have you ever been stuck in traffic and found yourself enjoying it anyway? In the evening, we cooked together and the whole house smelled amazing. Honestly, simple days like that are my favourite. Sunday was quieter. I read a little, called my mum, and planned the week ahead. Now I'm ready for whatever comes next.",
+  "Hello, how are you doing today? I wanted to share a quick story. Last month I finally decided to learn something new, so I signed up for a short online course. The first week was exciting, but by the second week I was tired and wanted to give up. Can you believe that? Then a friend reminded me why I started, and that changed everything. I set a small goal: thirty minutes every evening, no excuses. Slowly, it started to make sense. Last Friday I finished the final lesson, and I felt so proud of myself! I even told my brother, who just laughed and said, \"I knew you would do it.\" The lesson for me is simple. Big things are just small steps, repeated again and again. So, what is the next thing you want to learn?",
+  "Hey! It's been a while, hasn't it? A lot has happened since we last spoke. Work has been busy, but in a good way. We started a new project, and I'm working with some really kind people. On Wednesday we had a long meeting that went on for almost three hours. By the end, everyone was hungry, so we ordered jollof rice and chicken for the whole team. That made everybody happy! Outside of work, I've been trying to rest more and sleep on time. It's not always easy, especially when there's a good film on. Speaking of films, have you watched anything interesting lately? I'd love a good recommendation. Anyway, I just wanted to say hello and check in. Let's plan to catch up properly this weekend. Take care, and talk soon!",
+];
+
 function CloneVoice({ enabled, onDone }: { enabled: boolean; onDone: () => void }) {
   const [script, setScript] = useState("");
+  const [passage, setPassage] = useState("");
   const [recording, setRecording] = useState(false);
   const [seconds, setSeconds] = useState(0);
   const [audio, setAudio] = useState<Blob | null>(null);
@@ -220,6 +230,7 @@ function CloneVoice({ enabled, onDone }: { enabled: boolean; onDone: () => void 
     try {
       const { script } = await api<{ script: string }>("/api/voices/clone/script", { method: "POST" });
       setScript(script);
+      setPassage(PASSAGES[Math.floor(Math.random() * PASSAGES.length)]);
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const chunks: Blob[] = [];
       const rec = new MediaRecorder(stream);
@@ -258,6 +269,7 @@ function CloneVoice({ enabled, onDone }: { enabled: boolean; onDone: () => void 
       if (!response.ok) throw new Error((data as { error?: string }).error ?? "Cloning failed");
       setStatus({ ok: "Your voice is ready. Pick it as the voice for any caller." });
       setScript("");
+      setPassage("");
       setAudio(null);
       onDone();
     } catch (err) {
@@ -278,15 +290,26 @@ function CloneVoice({ enabled, onDone }: { enabled: boolean; onDone: () => void 
       ) : (
         <>
           <p className="small muted">
-            Only your own voice. You&apos;ll read a short consent statement with code words, then keep talking
-            naturally (tell a story, describe your day) for at least a minute. Use a quiet room.
+            Only your own voice. You&apos;ll read a short consent statement with code words, then a short story we
+            give you (about a minute). Use a quiet room.
           </p>
           {script && (
-            <div className="script">
-              <strong>Read this first:</strong>
-              <br />
-              {script}
-            </div>
+            <>
+              <div className="script">
+                <strong>1. Read this first:</strong>
+                <br />
+                {script}
+              </div>
+              <div className="script" style={{ fontSize: "1rem" }}>
+                <strong>2. Then read this in your normal voice, like you&apos;re talking to a friend:</strong>
+                <br />
+                {passage}
+              </div>
+              <p className="small muted">
+                Tips: hold the phone about a hand&apos;s length from your mouth, no music or TV in the background, and
+                speak naturally. Smile, ask the questions like real questions, and don&apos;t rush. When you finish reading, press Stop.
+              </p>
+            </>
           )}
           <div className="row">
             {!recording ? (

@@ -45,6 +45,13 @@ export type AgentSettings = {
   maxDurationSeconds: number;
 };
 
+// ElevenLabs only accepts the English "v2" models (turbo/flash) for English
+// agents, and the multilingual v2.5 models for other languages.
+export function agentTtsModel(configured: string, language: string): string {
+  if (language === "en") return configured.replace(/_v2_5$/, "_v2");
+  return configured.replace(/^(eleven_(?:flash|turbo)_v2)$/, "$1_5");
+}
+
 function agentBody(name: string, s: AgentSettings) {
   return {
     name,
@@ -54,7 +61,7 @@ function agentBody(name: string, s: AgentSettings) {
         language: s.language,
         prompt: { prompt: s.prompt, llm: config.agentLlm },
       },
-      tts: { voice_id: s.voiceId, model_id: config.ttsModel },
+      tts: { voice_id: s.voiceId, model_id: agentTtsModel(config.ttsModel, s.language) },
       conversation: { max_duration_seconds: s.maxDurationSeconds },
     },
   };
