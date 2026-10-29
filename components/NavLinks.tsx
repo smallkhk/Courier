@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { HomeIcon, UserIcon, WalletIcon, WaveIcon } from "./Icons";
+import { HomeIcon, MicIcon, UserIcon, WalletIcon, WaveIcon } from "./Icons";
 
 const LINKS = [
   { href: "/home", label: "Home", Icon: HomeIcon, match: ["/home", "/callers"] },
+  { href: "/changer", label: "Changer", Icon: MicIcon, match: ["/changer"] },
   { href: "/profile", label: "Profile", Icon: UserIcon, match: ["/profile"] },
   { href: "/voices", label: "Voices", Icon: WaveIcon, match: ["/voices"] },
   { href: "/wallet", label: "Wallet", Icon: WalletIcon, match: ["/wallet"] },

@@ -50,6 +50,18 @@ export const config = {
   get minDepositUsd() {
     return Math.max(1, Math.round(getNumber("minDepositUsd")));
   },
+  get changerEnabled() {
+    return getBool("changerEnabled");
+  },
+  get changerFastPerMinuteMicros() {
+    return Math.max(1, usd("changerFastPricePerMinuteUsd"));
+  },
+  get changerNaturalPerMinuteMicros() {
+    return Math.max(1, usd("changerNaturalPricePerMinuteUsd"));
+  },
+  get relayUrl() {
+    return getSetting("relayUrl");
+  },
   depositWindowSeconds: 60 * 60,
   get wallets() {
     return {

@@ -1,0 +1,23 @@
+{
+  "name": "callmate-desktop",
+  "productName": "CallMate Voice Changer",
+  "version": "1.0.0",
+  "description": "Live AI voice changer with a virtual microphone for Windows.",
+  "main": "main.cjs",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win nsis"
+  },
+  "devDependencies": {
+    "electron": "45.1.0",
+    "electron-builder": "26.18.0"
+  },
+  "build": {
+    "appId": "com.callmate.voicechanger",
+    "productName": "CallMate Voice Changer",
+    "files": ["main.cjs", "preload.cjs", "config.json"],
+    "win": { "target": "nsis" },
+    "nsis": { "oneClick": false, "allowToChangeInstallationDirectory": true, "createDesktopShortcut": true }
+  }
+}

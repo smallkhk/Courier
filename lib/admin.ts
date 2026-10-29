@@ -49,6 +49,8 @@ export type Stats = {
   openTopups: number;
   reviewTopups: number;
   clones: number;
+  changerRevenueMicros: number;
+  changerSeconds: number;
   daily: { day: string; revenue: number; deposits: number; calls: number }[];
 };
 
@@ -96,6 +98,8 @@ export function getStats(): Stats {
     openTopups: n("SELECT COUNT(*) AS n FROM deposits WHERE status = 'pending'"),
     reviewTopups: n("SELECT COUNT(*) AS n FROM deposits WHERE status = 'review'"),
     clones: n("SELECT COUNT(*) AS n FROM voices WHERE source = 'clone'"),
+    changerRevenueMicros: n("SELECT SUM(charged_micros) AS n FROM changer_sessions"),
+    changerSeconds: Math.round(n("SELECT SUM(billed_ms) AS n FROM changer_sessions") / 1000),
     daily,
   };
 }

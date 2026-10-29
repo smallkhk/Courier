@@ -29,7 +29,7 @@ export default function AdminOverview() {
       <h1>Overview</h1>
       <p className="muted">Everything happening on {config.platformName}.</p>
 
-      {(s.reviewTopups > 0 || !config.callsEnabled || !config.topupsEnabled || !config.signupsOpen) && (
+      {(s.reviewTopups > 0 || !config.callsEnabled || !config.topupsEnabled || !config.signupsOpen || !config.changerEnabled) && (
         <div className="callout">
           <span style={{ fontSize: "1.3rem" }}>⚠️</span>
           <div style={{ flex: 1 }} className="small">
@@ -42,6 +42,7 @@ export default function AdminOverview() {
             {!config.callsEnabled && <div>Calls are switched off (maintenance mode).</div>}
             {!config.topupsEnabled && <div>Top-ups are switched off.</div>}
             {!config.signupsOpen && <div>New sign-ups are closed.</div>}
+            {!config.changerEnabled && <div>The voice changer is switched off.</div>}
           </div>
         </div>
       )}
@@ -55,6 +56,7 @@ export default function AdminOverview() {
         <Stat label="Unused balances" value={formatUsd(s.balancesMicros)} sub="Credit customers still hold" />
         <Stat label="Top-ups waiting" value={String(s.openTopups)} sub="Open, not paid yet" href="/admin/payments?status=pending" />
         <Stat label="Needs review" value={String(s.reviewTopups)} alert={s.reviewTopups > 0} sub="Amount didn't match" href="/admin/payments?status=review" />
+        <Stat label="Voice changer revenue" value={formatUsd(s.changerRevenueMicros)} sub={`${Math.round(s.changerSeconds / 60)} minutes used`} />
         <Stat label="Cloned voices" value={String(s.clones)} href="/admin/voices" />
       </div>
 

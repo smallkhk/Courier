@@ -125,6 +125,23 @@ CREATE TABLE IF NOT EXISTS usage_events (
 );
 CREATE INDEX IF NOT EXISTS usage_events_account ON usage_events(account_id, created_at);
 
+-- Live voice changer sessions. The ticket is a one-time pass the browser
+-- or desktop app hands to the voice relay to open the session.
+CREATE TABLE IF NOT EXISTS changer_sessions (
+  id TEXT PRIMARY KEY,
+  account_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+  mode TEXT NOT NULL,
+  voice_id TEXT NOT NULL,
+  ticket_hash TEXT UNIQUE,
+  ticket_expires INTEGER NOT NULL,
+  started_at INTEGER,
+  ended_at INTEGER,
+  billed_ms INTEGER NOT NULL DEFAULT 0,
+  charged_micros INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS changer_sessions_account ON changer_sessions(account_id, created_at);
+
 -- Everything an admin does, for accountability.
 CREATE TABLE IF NOT EXISTS admin_log (
   id TEXT PRIMARY KEY,

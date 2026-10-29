@@ -6,3 +6,5 @@ node_modules
 .env.local
 next-env.d.ts
 *.tsbuildinfo
+desktop/node_modules
+desktop/dist

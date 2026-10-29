@@ -13,6 +13,7 @@ cp .env.example .env    # add ELEVENLABS_API_KEY and your USDT wallet addresses
 npm install
 npm run dev             # http://localhost:3000
 npm run watch-payments  # in a second terminal: credits USDT payments in the background
+npm run relay           # in a third terminal: the live voice changer relay
 ```
 
 Other commands:
@@ -48,6 +49,32 @@ npm run approve-deposit -- <deposit-id>     # credit a top-up that is waiting fo
 4. Customers can also paste their transaction hash to check straight away.
 5. Every transaction hash is credited only once.
 6. If the amount received is different (usually an exchange took its fee out), the top-up goes to **review**. Confirm with the customer that it's theirs, then run `npm run approve-deposit -- <id>`.
+
+## Live voice changer (`/changer` + Windows app)
+
+Talk into your mic and come out in another voice (or your own clone), live. The output can go to the **VB-Audio Virtual Cable**, so WhatsApp, Zoom, Discord, Telegram or OBS use it as a microphone.
+
+| Mode | How it works | Delay |
+|---|---|---|
+| ⚡ **Fast** | ElevenLabs realtime speech-to-text → words released as soon as they're stable → ElevenLabs streaming text-to-speech in the chosen voice | about 0.5–1 s |
+| 🎭 **Natural** | Speech split at short pauses → ElevenLabs voice changer (`eleven_multilingual_sts_v2`) | about 1–2 s, keeps tone and emotion |
+
+ElevenLabs has no real-time voice changer that accepts streaming input, so ~100 ms isn't possible through their API. Fast mode is the closest it gets.
+
+**Running it:**
+- The audio goes through the **voice relay** (`relay/server.ts`), which needs its own process: `npm run relay`. Next.js can't hold websockets.
+- The relay shares the database with the web app and keeps the ElevenLabs key on the server.
+- Users get a one-time ticket from `/api/changer/ticket`, valid for 60 seconds.
+- In production, put the relay behind HTTPS and set its `wss://` address as **Voice relay address** on the admin Settings page (or `RELAY_PUBLIC_URL`).
+
+**Billing and control:**
+- Fast mode bills per second of microphone audio streamed. Natural mode bills per second of speech converted.
+- Usage is charged every 5 seconds, and the session stops when credit runs out.
+- On the admin Settings page you can switch the changer on or off and set the price per minute for each mode. Usage appears in the overview.
+
+**Options:** push-to-talk (hold Space, or press Ctrl+Shift+Space anywhere in the desktop app), hear yourself, pick mic and output device, live mic and voice meters.
+
+**Windows app:** `desktop/`, a small Electron shell around the `/changer` page. It adds a tray icon, keeps running in the background, and has the global talk hotkey. See `desktop/README.md` to point it at your site and build the installer (`npm run dist` on Windows).
 
 ## Admin panel (`/admin`)
 

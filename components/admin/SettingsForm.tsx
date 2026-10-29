@@ -7,7 +7,7 @@ import { api } from "../api";
 
 type Setting = SettingDef & { value: string };
 
-const GROUPS: SettingDef["group"][] = ["General", "Pricing", "Calls", "Payments", "AI and voice"];
+const GROUPS: SettingDef["group"][] = ["General", "Pricing", "Calls", "Voice changer", "Payments", "AI and voice"];
 
 export function SettingsForm({ settings }: { settings: Setting[] }) {
   const router = useRouter();
