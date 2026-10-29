@@ -86,10 +86,13 @@ test("the call prompt speaks as the owner and keeps the guardrails", () => {
     localTime: "Sunday 18:00",
     memory: [{ when: "2026-10-20", summary: "Discussed school fees." }],
   });
-  assert.match(prompt, /speaking as Ada Obi/);
+  assert.match(prompt, /^You are Ada Obi/);
+  assert.match(prompt, /not an assistant/);
+  assert.doesNotMatch(prompt, /voice assistant to talk for/);
+  assert.match(prompt, /I live in Lagos\./);
   assert.match(prompt, /Plan for dad's birthday/);
   assert.match(prompt, /Discussed school fees/);
-  assert.match(prompt, /don't deny it/);
+  assert.match(prompt, /don't lie about it/);
   assert.match(prompt, /one-time codes/);
 });
 
