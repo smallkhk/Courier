@@ -115,3 +115,12 @@ test("English agents get the English voice model, others the multilingual one", 
   assert.equal(agentTtsModel("eleven_flash_v2", "fr"), "eleven_flash_v2_5");
   assert.equal(agentTtsModel("eleven_v4_turbo", "en"), "eleven_v4_turbo");
 });
+
+test("code words tolerate spelling and small transcription slips", async () => {
+  const { transcriptHasWords, matchedWords } = await import("../lib/clone-consent.ts");
+  const words = ["cactus", "engine", "pocket", "candle"];
+  assert.equal(transcriptHasWords("My code words are cactuses, engines, pockets and candel.", words), true);
+  assert.deepEqual(matchedWords("cactus engine", words), ["cactus", "engine"]);
+  assert.equal(transcriptHasWords("I like apples and oranges very much.", words), false);
+  assert.equal(transcriptHasWords("", words), false);
+});

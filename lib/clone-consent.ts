@@ -5,10 +5,12 @@ import { kvGet, kvSet, now } from "./db.ts";
 // random code words, recorded live in the browser. The recording is
 // transcribed and must contain the code words, which makes it hard to clone
 // someone else's voice from an existing recording.
+// Everyday words that speech-to-text gets right in most accents, with one
+// spelling in US and UK English.
 const WORDS = [
   "river", "orange", "candle", "pepper", "window", "tiger", "garden", "silver", "rocket", "pillow",
-  "marble", "bucket", "jungle", "violet", "harbor", "copper", "falcon", "lemon", "meadow", "pocket",
-  "tunnel", "velvet", "wagon", "zebra", "anchor", "basket", "cactus", "dolphin", "engine", "forest",
+  "bucket", "jungle", "copper", "lemon", "pocket", "banana", "doctor", "basket", "cactus", "dolphin",
+  "engine", "forest", "monkey", "tomato", "pencil", "camera", "rabbit", "kitchen", "button", "sugar",
 ];
 
 const TTL_SECONDS = 30 * 60;
@@ -34,8 +36,32 @@ export function clearConsent(accountId: string): void {
   kvSet(`clone_words:${accountId}`, JSON.stringify({ words: [], expires: 0 }));
 }
 
+function editDistance(a: string, b: string): number {
+  const row = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i++) {
+    let prev = row[0];
+    row[0] = i;
+    for (let j = 1; j <= b.length; j++) {
+      const saved = row[j];
+      row[j] = Math.min(row[j] + 1, row[j - 1] + 1, prev + (a[i - 1] === b[j - 1] ? 0 : 1));
+      prev = saved;
+    }
+  }
+  return row[b.length];
+}
+
+// A code word counts as heard when a transcribed word is the same or very
+// close (accents and transcription slips: "pockets", "harbour", "candel").
+function heard(word: string, spoken: string[]): boolean {
+  return spoken.some((s) => s === word || (s.length >= 4 && editDistance(s, word) <= (word.length >= 6 ? 2 : 1)));
+}
+
 // At least three of the four code words must appear in the transcript.
 export function transcriptHasWords(transcript: string, words: string[]): boolean {
-  const spoken = new Set(transcript.toLowerCase().match(/[a-z]+/g) ?? []);
-  return words.filter((w) => spoken.has(w)).length >= 3;
+  return matchedWords(transcript, words).length >= 3;
+}
+
+export function matchedWords(transcript: string, words: string[]): string[] {
+  const spoken = transcript.toLowerCase().match(/[a-z]+/g) ?? [];
+  return words.filter((w) => heard(w, spoken));
 }

@@ -1,5 +1,5 @@
 import { HttpError, requireUser } from "@/lib/auth.ts";
-import { clearConsent, consentWords, transcriptHasWords } from "@/lib/clone-consent.ts";
+import { clearConsent, consentWords, matchedWords, transcriptHasWords } from "@/lib/clone-consent.ts";
 import { config } from "@/lib/config.ts";
 import { cloneVoice, transcribe } from "@/lib/elevenlabs.ts";
 import { json, route } from "@/lib/http.ts";
@@ -28,10 +28,18 @@ export const POST = route(async (request: Request) => {
   const filename = audio.type.includes("mp4") ? "sample.mp4" : "sample.webm";
 
   const text = await transcribe(audio, filename);
+  if (!text.trim()) {
+    throw new HttpError(422, "We couldn't hear anything in the recording. Check your microphone works and try again.");
+  }
   if (!transcriptHasWords(text, words)) {
+    const found = matchedWords(text, words);
+    const missing = words.filter((w) => !found.includes(w));
+    console.warn("clone consent check failed", { words, heard: text.slice(0, 300) });
+    // Admins see what was actually heard, to tell a mic problem from a mismatch.
+    const adminNote = user.isAdmin ? ` (Admin only: heard "${text.slice(0, 200)}${text.length > 200 ? "…" : ""}")` : "";
     throw new HttpError(
       422,
-      "We couldn't hear the consent statement with your code words. Read it clearly at the start of the recording and try again.",
+      `We couldn't hear these code words clearly: ${missing.join(", ")}. Read the consent statement slowly at the start of the recording and try again.${adminNote}`,
     );
   }
 
