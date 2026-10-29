@@ -22,19 +22,21 @@ export function issueConsentScript(accountId: string, fullName: string, platform
     const word = WORDS[randomInt(WORDS.length)];
     if (!words.includes(word)) words.push(word);
   }
-  kvSet(`clone_words:${accountId}`, JSON.stringify({ words, expires: now() + TTL_SECONDS }));
+  kvSet(`clone_words:${accountId}`, JSON.stringify({ words, issued: now() }));
   return `My name is ${fullName}. I'm recording my own voice for ${platformName}, and I agree to let it speak for me on my calls. My code words are ${words.join(", ")}.`;
 }
 
 export function consentWords(accountId: string): string[] | null {
   const raw = kvGet(`clone_words:${accountId}`);
   if (!raw) return null;
-  const { words, expires } = JSON.parse(raw) as { words: string[]; expires: number };
-  return expires >= now() ? words : null;
+  const saved = JSON.parse(raw) as { words: string[]; issued?: number; expires?: number };
+  // Older entries stored a 30-minute expiry instead of the issue time.
+  const issued = saved.issued ?? (saved.expires ?? 0) - 30 * 60;
+  return issued + TTL_SECONDS >= now() ? saved.words : null;
 }
 
 export function clearConsent(accountId: string): void {
-  kvSet(`clone_words:${accountId}`, JSON.stringify({ words: [], expires: 0 }));
+  kvSet(`clone_words:${accountId}`, JSON.stringify({ words: [], issued: 0 }));
 }
 
 function editDistance(a: string, b: string): number {

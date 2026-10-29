@@ -124,3 +124,16 @@ test("code words tolerate spelling and small transcription slips", async () => {
   assert.equal(transcriptHasWords("I like apples and oranges very much.", words), false);
   assert.equal(transcriptHasWords("", words), false);
 });
+
+test("code words stay valid for a day, including ones saved in the old format", async () => {
+  const { consentWords, issueConsentScript } = await import("../lib/clone-consent.ts");
+  const { getDb, kvSet } = await import("../lib/db.ts");
+  getDb().prepare("INSERT INTO accounts (id, credit_micros, created_at) VALUES ('cw', 0, 0)").run();
+  issueConsentScript("cw", "Ada", "CallMate");
+  assert.equal(consentWords("cw")?.length, 4);
+  const now = Math.floor(Date.now() / 1000);
+  kvSet("clone_words:cw", JSON.stringify({ words: ["a", "b", "c", "d"], expires: now - 60 * 60 + 30 * 60 }));
+  assert.deepEqual(consentWords("cw"), ["a", "b", "c", "d"]); // issued an hour ago: still fine
+  kvSet("clone_words:cw", JSON.stringify({ words: ["a"], issued: now - 25 * 60 * 60 }));
+  assert.equal(consentWords("cw"), null);
+});
