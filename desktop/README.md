@@ -7,7 +7,7 @@ A small Windows app around the website's voice changer. It adds:
 
 ## Point it at your site
 
-Edit `config.json` and set `appUrl` to your website, for example `https://callmate.example.com`. The voice changer page must be served over HTTPS, and the relay over WSS, in production.
+Edit `config.json` and set `appUrl` to your website, for example `https://callmate.example.com`. Your site must use HTTPS (Namecheap AutoSSL is fine).
 
 ## Build the installer
 

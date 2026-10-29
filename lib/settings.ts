@@ -26,9 +26,8 @@ export const SETTINGS: SettingDef[] = [
   { key: "callsEnabled", label: "Calls enabled", help: "Turn off to stop anyone starting new calls (maintenance mode).", kind: "boolean", fallback: "true", group: "Calls" },
   { key: "maxCallSeconds", label: "Longest call (seconds)", help: "Hard limit for a single call.", kind: "integer", env: "MAX_CALL_SECONDS", fallback: "1800", group: "Calls", min: 60 },
   { key: "changerEnabled", label: "Voice changer enabled", help: "Turn off to stop anyone using the live voice changer.", kind: "boolean", fallback: "true", group: "Voice changer" },
-  { key: "changerFastPricePerMinuteUsd", label: "Fast mode price per minute (USD)", help: "Charged per second of microphone audio while the changer is on.", kind: "number", env: "CHANGER_FAST_PRICE_PER_MINUTE_USD", fallback: "0.15", group: "Voice changer", min: 0.01 },
+  { key: "changerFastPricePerMinuteUsd", label: "Fast mode price per minute (USD)", help: "Charged for the time the changer is on, in prepaid 1-minute blocks; unused time is refunded when it stops.", kind: "number", env: "CHANGER_FAST_PRICE_PER_MINUTE_USD", fallback: "0.15", group: "Voice changer", min: 0.01 },
   { key: "changerNaturalPricePerMinuteUsd", label: "Natural mode price per minute (USD)", help: "Charged per second of speech sent for conversion.", kind: "number", env: "CHANGER_NATURAL_PRICE_PER_MINUTE_USD", fallback: "0.2", group: "Voice changer", min: 0.01 },
-  { key: "relayUrl", label: "Voice relay address", help: "Public websocket address of the voice relay, e.g. wss://relay.yoursite.com. Empty uses the same host on port 3200.", kind: "text", env: "RELAY_PUBLIC_URL", fallback: "", group: "Voice changer" },
   { key: "topupsEnabled", label: "Top-ups enabled", help: "Turn off to stop new USDT top-ups.", kind: "boolean", fallback: "true", group: "Payments" },
   { key: "minDepositUsd", label: "Minimum top-up (USDT)", help: "Whole number.", kind: "integer", env: "MIN_DEPOSIT_USD", fallback: "3", group: "Payments", min: 1 },
   { key: "usdtTrc20Address", label: "USDT TRC20 wallet", help: "Your TRON address that receives payments. Empty turns TRC20 off.", kind: "trc20", env: "USDT_TRC20_ADDRESS", fallback: "", group: "Payments" },
@@ -71,8 +70,7 @@ export function validateSetting(key: string, raw: string): string {
   switch (d.kind) {
     case "text":
       if (value.length > 500) throw new Error(`${d.label}: keep it under 500 characters`);
-      if (key !== "announcement" && key !== "relayUrl" && !value) throw new Error(`${d.label} can't be empty`);
-      if (key === "relayUrl" && value && !/^wss?:\/\/[^\s]+$/.test(value)) throw new Error("Relay address must start with ws:// or wss://");
+      if (key !== "announcement" && !value) throw new Error(`${d.label} can't be empty`);
       return value;
     case "boolean":
       if (value !== "true" && value !== "false") throw new Error(`${d.label}: choose on or off`);

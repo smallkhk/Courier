@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Voice } from "@/lib/voices.ts";
-import { api, usd } from "./api";
+import { usd } from "./api";
+import { ChangerEngine } from "./changerEngine";
 import { MicIcon } from "./Icons";
 import { Orb } from "./Orb";
 
@@ -61,21 +62,19 @@ export function VoiceChanger({
   const [talking, setTalking] = useState(false);
   const [status, setStatus] = useState<Status>("off");
   const [error, setError] = useState("");
-  const [warning, setWarning] = useState("");
   const [credit, setCredit] = useState(initialCredit);
   const [inLevel, setInLevel] = useState(0);
   const [outLevel, setOutLevel] = useState(0);
   const [transcript, setTranscript] = useState("");
   const [isDesktop, setIsDesktop] = useState(false);
 
-  const ws = useRef<WebSocket | null>(null);
+  const engine = useRef<ChangerEngine | null>(null);
   const micCtx = useRef<AudioContext | null>(null);
   const stream = useRef<MediaStream | null>(null);
   const players = useRef<{ ctx: AudioContext; node: AudioWorkletNode }[]>([]);
   const outLevelRef = useRef(0);
   const talkingRef = useRef(false);
   const pttRef = useRef(false);
-  const batch = useRef<Int16Array[]>([]);
 
   const cable = outputs.find((d) => /cable input|vb-audio|blackhole/i.test(d.label));
 
@@ -105,7 +104,7 @@ export function VoiceChanger({
     if (talkingRef.current === on) return;
     talkingRef.current = on;
     setTalking(on);
-    if (!on && ws.current?.readyState === WebSocket.OPEN) ws.current.send(JSON.stringify({ type: "flush" }));
+    if (!on) engine.current?.flush();
   }, []);
 
   // Push-to-talk: hold Space in the window, or the desktop app's hotkey toggles.
@@ -130,21 +129,25 @@ export function VoiceChanger({
     };
   }, [pushToTalk, setTalk]);
 
-  const stop = useCallback(() => {
-    ws.current?.close();
-    ws.current = null;
+  // Releases the mic and audio outputs.
+  const cleanup = useCallback(() => {
+    engine.current = null;
     stream.current?.getTracks().forEach((t) => t.stop());
     stream.current = null;
     void micCtx.current?.close();
     micCtx.current = null;
     for (const p of players.current) void p.ctx.close();
     players.current = [];
-    batch.current = [];
     setStatus("off");
     setInLevel(0);
     setOutLevel(0);
     outLevelRef.current = 0;
   }, []);
+
+  const stop = useCallback(() => {
+    if (engine.current) engine.current.stop();
+    else cleanup();
+  }, [cleanup]);
 
   useEffect(() => stop, [stop]);
 
@@ -159,7 +162,6 @@ export function VoiceChanger({
 
   async function start() {
     setError("");
-    setWarning("");
     setTranscript("");
     setStatus("connecting");
     try {
@@ -178,11 +180,6 @@ export function VoiceChanger({
       stream.current = media;
       await loadDevices(); // labels become visible after permission
 
-      const { ticket, relayUrl } = await api<{ ticket: string; relayUrl: string }>("/api/changer/ticket", {
-        method: "POST",
-        body: JSON.stringify({ mode, voiceId }),
-      });
-
       // Output: the chosen device (e.g. the virtual cable), plus speakers if monitoring.
       players.current = [await makePlayer(outId)];
       if (monitor && outId) players.current.push(await makePlayer(""));
@@ -191,28 +188,23 @@ export function VoiceChanger({
         setOutLevel(e.data.level);
       };
 
-      const socket = new WebSocket(`${relayUrl}/?ticket=${encodeURIComponent(ticket)}`);
-      socket.binaryType = "arraybuffer";
-      ws.current = socket;
-      socket.onmessage = (e) => {
-        if (typeof e.data !== "string") {
+      const run = new ChangerEngine(mode, voiceId, {
+        onLive: () => setStatus("live"),
+        onAudio: (pcm) => {
           for (const p of players.current) {
-            const copy = (e.data as ArrayBuffer).slice(0);
+            const copy = pcm.slice(0);
             p.node.port.postMessage(copy, [copy]);
           }
-          return;
-        }
-        const msg = JSON.parse(e.data) as { type: string; message?: string; text?: string; final?: boolean; creditMicros?: number };
-        if (msg.type === "ready") setStatus("live");
-        if (msg.type === "error") setError(msg.message ?? "Something went wrong");
-        if (msg.type === "warning") setWarning(msg.message ?? "");
-        if (msg.type === "usage" && typeof msg.creditMicros === "number") setCredit(msg.creditMicros);
-        if (msg.type === "transcript") setTranscript(msg.text ?? "");
-      };
-      socket.onclose = () => stop();
-      socket.onerror = () => setError("Couldn't reach the voice relay. Check your connection and try again.");
+        },
+        onTranscript: setTranscript,
+        onCredit: setCredit,
+        onError: setError,
+        onEnded: cleanup,
+      });
+      engine.current = run;
+      await run.start();
 
-      // Input: the mic, at 16 kHz, in 20 ms frames, sent every 40 ms.
+      // Input: the mic, at 16 kHz, in 20 ms frames.
       const ctx = new AudioContext({ sampleRate: 16000, latencyHint: "interactive" });
       micCtx.current = ctx;
       await ctx.audioWorklet.addModule("/audio/mic-worklet.js");
@@ -220,26 +212,15 @@ export function VoiceChanger({
       const node = new AudioWorkletNode(ctx, "mic-capture");
       node.port.onmessage = (e) => {
         setInLevel(e.data.level);
-        const open = socket.readyState === WebSocket.OPEN;
         const sending = !pttRef.current || talkingRef.current;
-        if (!open || !sending) return;
-        batch.current.push(new Int16Array(e.data.pcm));
-        if (batch.current.length >= 2) {
-          const merged = new Int16Array(batch.current.reduce((n, f) => n + f.length, 0));
-          let at = 0;
-          for (const f of batch.current) {
-            merged.set(f, at);
-            at += f.length;
-          }
-          batch.current = [];
-          socket.send(merged.buffer);
-        }
+        if (sending) engine.current?.audio(new Int16Array(e.data.pcm));
       };
       source.connect(node);
     } catch (err) {
       const e = err as Error;
       setError(e.name === "NotAllowedError" ? "Allow microphone access to use the voice changer." : e.message);
-      stop();
+      if (engine.current) engine.current.stop();
+      else cleanup();
     }
   }
 
@@ -298,7 +279,6 @@ export function VoiceChanger({
           )}
         </div>
         {error && <p className="error small" style={{ marginTop: 12 }}>{error}</p>}
-        {warning && <p className="small muted">{warning}</p>}
         <p className="small faint" style={{ marginTop: 10 }}>
           Balance {usd(credit)} · {usd(prices[mode])}/min in {mode === "fast" ? "Fast" : "Natural"} mode
         </p>

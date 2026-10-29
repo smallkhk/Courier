@@ -4,7 +4,9 @@
 // change what the AI is told.
 import { config } from "./config.ts";
 
-const BASE = "https://api.elevenlabs.io/v1";
+// ELEVENLABS_API_BASE lets tests point the app at a local stand-in.
+export const ELEVENLABS_BASE = process.env.ELEVENLABS_API_BASE || "https://api.elevenlabs.io";
+const BASE = `${ELEVENLABS_BASE}/v1`;
 
 export class ElevenLabsError extends Error {}
 
@@ -183,4 +185,32 @@ export async function transcribe(sample: Blob, filename: string): Promise<string
 
 export async function deleteAgent(agentId: string): Promise<void> {
   await call(`/convai/agents/${encodeURIComponent(agentId)}`, { method: "DELETE" });
+}
+
+// Short-lived, single-use token so a browser can open one ElevenLabs
+// websocket without ever seeing the API key. Expires after 15 minutes.
+export async function singleUseToken(type: "realtime_scribe" | "tts_websocket"): Promise<string> {
+  const result = await call<{ token: string }>(`/single-use-token/${type}`, { method: "POST" });
+  return result.token;
+}
+
+// Natural-mode voice change for one phrase of 16 kHz 16-bit mono PCM.
+// Returns the streaming response so converted audio can be passed straight on.
+export async function voiceChangeStream(voiceId: string, pcm: Uint8Array<ArrayBuffer>): Promise<Response> {
+  const form = new FormData();
+  form.set("model_id", "eleven_multilingual_sts_v2");
+  form.set("file_format", "pcm_s16le_16");
+  form.set("remove_background_noise", "false");
+  form.append("audio", new Blob([pcm], { type: "application/octet-stream" }), "phrase.pcm");
+  const response = await fetch(`${BASE}/voice-changer/${encodeURIComponent(voiceId)}/stream?output_format=pcm_16000`, {
+    method: "POST",
+    headers: { "xi-api-key": key() },
+    body: form,
+    cache: "no-store",
+  });
+  if (!response.ok || !response.body) {
+    const body = await response.text().catch(() => "");
+    throw new ElevenLabsError(`ElevenLabs voice changer failed: ${response.status} ${body.slice(0, 300)}`);
+  }
+  return response;
 }

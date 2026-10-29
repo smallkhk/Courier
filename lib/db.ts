@@ -125,8 +125,8 @@ CREATE TABLE IF NOT EXISTS usage_events (
 );
 CREATE INDEX IF NOT EXISTS usage_events_account ON usage_events(account_id, created_at);
 
--- Live voice changer sessions. The ticket is a one-time pass the browser
--- or desktop app hands to the voice relay to open the session.
+-- Live voice changer sessions. Fast mode prepays time in blocks
+-- (paid_until_ms); natural mode is billed per converted phrase.
 CREATE TABLE IF NOT EXISTS changer_sessions (
   id TEXT PRIMARY KEY,
   account_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
@@ -163,6 +163,9 @@ CREATE TABLE IF NOT EXISTS kv (
 const MIGRATIONS: { table: string; column: string; ddl: string }[] = [
   { table: "users", column: "is_admin", ddl: "ALTER TABLE users ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0" },
   { table: "accounts", column: "blocked_at", ddl: "ALTER TABLE accounts ADD COLUMN blocked_at INTEGER" },
+  { table: "changer_sessions", column: "started_ms", ddl: "ALTER TABLE changer_sessions ADD COLUMN started_ms INTEGER" },
+  { table: "changer_sessions", column: "paid_until_ms", ddl: "ALTER TABLE changer_sessions ADD COLUMN paid_until_ms INTEGER" },
+  { table: "changer_sessions", column: "last_active", ddl: "ALTER TABLE changer_sessions ADD COLUMN last_active INTEGER" },
   { table: "accounts", column: "block_reason", ddl: "ALTER TABLE accounts ADD COLUMN block_reason TEXT NOT NULL DEFAULT ''" },
 ];
 

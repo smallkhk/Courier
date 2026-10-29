@@ -3,11 +3,12 @@ import { test } from "node:test";
 
 process.env.DATABASE_PATH = ":memory:";
 process.env.CHANGER_FAST_PRICE_PER_MINUTE_USD = "0.12";
+process.env.CHANGER_NATURAL_PRICE_PER_MINUTE_USD = "0.24";
 
 const { getDb } = await import("../lib/db.ts");
 const repo = await import("../lib/repo.ts");
 const changer = await import("../lib/changer.ts");
-const { StableWords, SpeechChunker, pcmDurationMs } = await import("../lib/changer-audio.ts");
+const { StableWords, SpeechChunker, durationMs, toBase64, fromBase64 } = await import("../lib/changer-audio.ts");
 const settings = await import("../lib/settings.ts");
 
 function makeAccount(id: string, credit: number) {
@@ -15,37 +16,59 @@ function makeAccount(id: string, credit: number) {
 }
 
 const VOICE = "21m00Tcm4TlvDq8ikWAM"; // a built-in voice
+const T0 = 1_800_000_000_000;
 
-test("tickets work once, need credit and an allowed voice", () => {
-  makeAccount("ch-a", 1_000_000);
-  const { ticket } = changer.createTicket("ch-a", "fast", VOICE);
-  const session = changer.redeemTicket(ticket);
-  assert.ok(session);
-  assert.equal(session.mode, "fast");
-  assert.equal(changer.redeemTicket(ticket), null);
-  assert.throws(() => changer.createTicket("ch-a", "fast", "someone-elses-clone"));
+test("starting needs credit, an allowed voice and the switch on", () => {
   makeAccount("ch-poor", 1000);
-  assert.throws(() => changer.createTicket("ch-poor", "fast", VOICE), /credit/);
+  assert.throws(() => changer.startSession("ch-poor", "fast", VOICE), /credit/);
+  makeAccount("ch-a", 1_000_000);
+  assert.throws(() => changer.startSession("ch-a", "fast", "someone-elses-clone"), /voices/);
   settings.saveSetting("changerEnabled", "false");
-  assert.throws(() => changer.createTicket("ch-a", "fast", VOICE), /switched off/);
+  assert.throws(() => changer.startSession("ch-a", "fast", VOICE), /switched off/);
   settings.saveSetting("changerEnabled", "true");
 });
 
-test("blocked accounts can't redeem tickets", () => {
-  makeAccount("ch-b", 1_000_000);
-  const { ticket } = changer.createTicket("ch-b", "natural", VOICE);
-  getDb().prepare("UPDATE accounts SET blocked_at = 1 WHERE id = 'ch-b'").run();
-  assert.equal(changer.redeemTicket(ticket), null);
+test("fast mode prepays a minute, renews, and refunds unused time on stop", () => {
+  makeAccount("ch-f", 1_000_000);
+  const s = changer.startSession("ch-f", "fast", VOICE, T0);
+  assert.equal(repo.getCredit("ch-f"), 1_000_000 - 120_000);
+  const r = changer.renewFast("ch-f", s.id, T0 + 50_000);
+  assert.equal(r.paid_until_ms, T0 + 120_000);
+  assert.equal(repo.getCredit("ch-f"), 1_000_000 - 240_000);
+  // Stop after 90 seconds: pay for 90s only.
+  const { refundedMicros } = changer.stopSession("ch-f", s.id, T0 + 90_000);
+  assert.equal(refundedMicros, 60_000);
+  assert.equal(repo.getCredit("ch-f"), 1_000_000 - 180_000);
+  assert.throws(() => changer.renewFast("ch-f", s.id, T0 + 95_000), /ended/);
+  assert.equal(changer.stopSession("ch-f", s.id, T0 + 99_000).refundedMicros, 0);
 });
 
-test("billing in slices adds up to the per-second price without rounding drift", () => {
-  makeAccount("ch-c", 1_000_000);
-  const { ticket } = changer.createTicket("ch-c", "fast", VOICE);
-  const session = changer.redeemTicket(ticket)!;
-  for (let i = 0; i < 12; i++) changer.billUsage(session, 5_000); // 60 seconds in 5s slices
-  assert.equal(repo.getCredit("ch-c"), 1_000_000 - 120_000); // $0.12/min
-  changer.billUsage(session, 333);
-  assert.equal(repo.getCredit("ch-c"), 1_000_000 - changer.chargeFor("fast", 60_333));
+test("fast mode can't renew a lapsed session or without credit", () => {
+  makeAccount("ch-g", 1_000_000);
+  const s = changer.startSession("ch-g", "fast", VOICE, T0);
+  assert.throws(() => changer.renewFast("ch-g", s.id, T0 + 120_000), /timed out/);
+  makeAccount("ch-h", 150_000);
+  const h = changer.startSession("ch-h", "fast", VOICE, T0);
+  assert.throws(() => changer.renewFast("ch-h", h.id, T0 + 55_000), /out of credit/);
+  assert.throws(() => changer.assertFastActive("ch-h", h.id, T0 + 1000), /ended/);
+});
+
+test("sessions belong to their account", () => {
+  makeAccount("ch-x", 1_000_000);
+  makeAccount("ch-y", 1_000_000);
+  const s = changer.startSession("ch-x", "fast", VOICE, T0);
+  assert.throws(() => changer.renewFast("ch-y", s.id, T0 + 10_000));
+  assert.throws(() => changer.billPhrase("ch-y", s.id, 1000));
+  assert.equal(changer.stopSession("ch-y", s.id, T0 + 10_000).refundedMicros, 0);
+});
+
+test("natural mode bills phrases without rounding drift", () => {
+  makeAccount("ch-n", 1_000_000);
+  const s = changer.startSession("ch-n", "natural", VOICE);
+  assert.equal(repo.getCredit("ch-n"), 1_000_000);
+  for (let i = 0; i < 20; i++) changer.billPhrase("ch-n", s.id, 3000); // 60 seconds
+  assert.equal(repo.getCredit("ch-n"), 1_000_000 - 240_000);
+  assert.throws(() => changer.billPhrase("ch-n", s.id, 0) && changer.renewFast("ch-n", s.id));
 });
 
 test("stable words: only words seen twice and not last are released", () => {
@@ -67,29 +90,33 @@ test("stable words: a corrected word isn't released early", () => {
   assert.equal(s.onPartial("I wanted to go"), "wanted to");
 });
 
-function tone(ms: number, amp: number): Buffer {
+function tone(ms: number, amp: number): Int16Array {
   const samples = (16000 * ms) / 1000;
-  const b = Buffer.alloc(samples * 2);
-  for (let i = 0; i < samples; i++) b.writeInt16LE(Math.round(Math.sin(i / 5) * amp), i * 2);
-  return b;
+  const out = new Int16Array(samples);
+  for (let i = 0; i < samples; i++) out[i] = Math.round(Math.sin(i / 5) * amp);
+  return out;
 }
 
 test("speech chunker splits at pauses and keeps a little pre-roll", () => {
   const c = new SpeechChunker();
-  assert.deepEqual(c.push(tone(500, 20)), []); // background noise only
-  assert.deepEqual(c.push(tone(800, 8000)), []); // speaking
-  const out = c.push(tone(400, 20)); // pause ends the phrase
+  assert.deepEqual(c.push(tone(500, 20)), []);
+  assert.deepEqual(c.push(tone(800, 8000)), []);
+  const out = c.push(tone(400, 20));
   assert.equal(out.length, 1);
-  const ms = pcmDurationMs(out[0].length);
-  assert.ok(ms >= 800 + 100 && ms <= 800 + 120 + 400, `chunk was ${ms}ms`);
+  const ms = durationMs(out[0].length);
+  assert.ok(ms >= 900 && ms <= 1320, `chunk was ${ms}ms`);
 });
 
 test("speech chunker caps long phrases and ignores tiny blips", () => {
   const c = new SpeechChunker({ maxMs: 2000 });
-  const out = c.push(tone(4500, 8000));
-  assert.equal(out.length, 2);
+  assert.equal(c.push(tone(4500, 8000)).length, 2);
   const blip = new SpeechChunker();
   blip.push(tone(300, 20));
   blip.push(tone(60, 8000));
   assert.equal(blip.flush(), null);
+});
+
+test("base64 round-trips audio", () => {
+  const samples = tone(100, 9000);
+  assert.deepEqual(new Int16Array(fromBase64(toBase64(samples))), samples);
 });

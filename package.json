@@ -14,7 +14,8 @@
     "add-credit": "node --env-file-if-exists=.env --experimental-strip-types scripts/add-credit.ts",
     "watch-payments": "node --env-file-if-exists=.env --experimental-strip-types scripts/watch-payments.ts",
     "approve-deposit": "node --env-file-if-exists=.env --experimental-strip-types scripts/approve-deposit.ts",
-    "relay": "node --env-file-if-exists=.env --experimental-strip-types relay/server.ts"
+    "package:namecheap": "next build && node scripts/package-namecheap.mjs",
+    "scan-payments": "node --env-file-if-exists=.env --experimental-strip-types scripts/scan-payments-once.ts"
   },
   "dependencies": {
     "@elevenlabs/react": "^1.20.1",
@@ -22,7 +23,6 @@
     "qrcode": "^1.5.4",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
-    "ws": "^8.22.0",
     "zod": "^4.6.7"
   },
   "devDependencies": {
@@ -30,7 +30,6 @@
     "@types/qrcode": "^1.5.6",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
-    "@types/ws": "^8.18.2",
     "typescript": "^5.9.3"
   }
 }

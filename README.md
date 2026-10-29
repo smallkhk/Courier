@@ -13,7 +13,7 @@ cp .env.example .env    # add ELEVENLABS_API_KEY and your USDT wallet addresses
 npm install
 npm run dev             # http://localhost:3000
 npm run watch-payments  # in a second terminal: credits USDT payments in the background
-npm run relay           # in a third terminal: the live voice changer relay
+                        # (on cPanel use a once-a-minute Cron Job with scripts/scan-payments-once.ts)
 ```
 
 Other commands:
@@ -54,27 +54,30 @@ npm run approve-deposit -- <deposit-id>     # credit a top-up that is waiting fo
 
 Talk into your mic and come out in another voice (or your own clone), live. The output can go to the **VB-Audio Virtual Cable**, so WhatsApp, Zoom, Discord, Telegram or OBS use it as a microphone.
 
-| Mode | How it works | Delay |
-|---|---|---|
-| ⚡ **Fast** | ElevenLabs realtime speech-to-text → words released as soon as they're stable → ElevenLabs streaming text-to-speech in the chosen voice | about 0.5–1 s |
-| 🎭 **Natural** | Speech split at short pauses → ElevenLabs voice changer (`eleven_multilingual_sts_v2`) | about 1–2 s, keeps tone and emotion |
+| Mode | How it works | Delay | Billing |
+|---|---|---|---|
+| ⚡ **Fast** | The browser streams the mic **straight to ElevenLabs** realtime speech-to-text; words go out as soon as they're stable to ElevenLabs streaming text-to-speech in the chosen voice | about 0.5–1 s | Prepaid 1-minute blocks renewed while running; unused time refunded on stop, measured by the server's clock |
+| 🎭 **Natural** | Speech is split at short pauses in the browser; each phrase is a short upload to `/api/changer/convert`, which runs the ElevenLabs voice changer and streams the result back | about 1–2 s, keeps tone and emotion | Per second of speech converted |
 
-ElevenLabs has no real-time voice changer that accepts streaming input, so ~100 ms isn't possible through their API. Fast mode is the closest it gets.
+**How it stays safe and works on shared hosting:**
+- No long-lived connection runs through your server, so it works on shared hosting.
+- The ElevenLabs key never leaves the server. Fast mode gets 15-minute **single-use tokens** from `/api/changer/start` and `/api/changer/token`.
+- ElevenLabs has no real-time voice changer that accepts streaming input, so ~100 ms isn't possible through their API.
 
-**Running it:**
-- The audio goes through the **voice relay** (`relay/server.ts`), which needs its own process: `npm run relay`. Next.js can't hold websockets.
-- The relay shares the database with the web app and keeps the ElevenLabs key on the server.
-- Users get a one-time ticket from `/api/changer/ticket`, valid for 60 seconds.
-- In production, put the relay behind HTTPS and set its `wss://` address as **Voice relay address** on the admin Settings page (or `RELAY_PUBLIC_URL`).
-
-**Billing and control:**
-- Fast mode bills per second of microphone audio streamed. Natural mode bills per second of speech converted.
-- Usage is charged every 5 seconds, and the session stops when credit runs out.
-- On the admin Settings page you can switch the changer on or off and set the price per minute for each mode. Usage appears in the overview.
+**Fast mode limitation:** a technically skilled user could tamper with the browser to keep a connection open past their paid block. The most they can gain is roughly the time that connection stays open. Natural mode is billed exactly.
 
 **Options:** push-to-talk (hold Space, or press Ctrl+Shift+Space anywhere in the desktop app), hear yourself, pick mic and output device, live mic and voice meters.
 
-**Windows app:** `desktop/`, a small Electron shell around the `/changer` page. It adds a tray icon, keeps running in the background, and has the global talk hotkey. See `desktop/README.md` to point it at your site and build the installer (`npm run dist` on Windows).
+**Windows app:** `desktop/`, a small Electron shell around the `/changer` page. It adds a tray icon, keeps running in the background, and has the global talk hotkey. See `desktop/README.md`.
+
+## Hosting on Namecheap / cPanel
+
+See **[docs/NAMECHEAP.md](docs/NAMECHEAP.md)**.
+
+1. `npm run package:namecheap` builds `deploy/callmate.zip`, a self-contained app (Next.js standalone) that needs no `npm install` on the server.
+2. Upload it with the startup file `app.cjs`.
+3. Add a `.env`.
+4. Add one Cron Job for payments.
 
 ## Admin panel (`/admin`)
 

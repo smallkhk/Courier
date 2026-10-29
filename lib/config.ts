@@ -59,9 +59,6 @@ export const config = {
   get changerNaturalPerMinuteMicros() {
     return Math.max(1, usd("changerNaturalPricePerMinuteUsd"));
   },
-  get relayUrl() {
-    return getSetting("relayUrl");
-  },
   depositWindowSeconds: 60 * 60,
   get wallets() {
     return {
