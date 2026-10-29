@@ -153,6 +153,19 @@ CREATE TABLE IF NOT EXISTS admin_log (
 );
 CREATE INDEX IF NOT EXISTS admin_log_time ON admin_log(created_at);
 
+-- Extra things the AI knows about the account owner: notes kept here, and
+-- websites/files stored in the ElevenLabs knowledge base (el_doc_id).
+CREATE TABLE IF NOT EXISTS knowledge (
+  id TEXT PRIMARY KEY,
+  account_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+  kind TEXT NOT NULL,
+  name TEXT NOT NULL,
+  content TEXT NOT NULL DEFAULT '',
+  el_doc_id TEXT,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS knowledge_account ON knowledge(account_id);
+
 CREATE TABLE IF NOT EXISTS kv (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL
@@ -167,6 +180,18 @@ const MIGRATIONS: { table: string; column: string; ddl: string }[] = [
   { table: "changer_sessions", column: "paid_until_ms", ddl: "ALTER TABLE changer_sessions ADD COLUMN paid_until_ms INTEGER" },
   { table: "changer_sessions", column: "last_active", ddl: "ALTER TABLE changer_sessions ADD COLUMN last_active INTEGER" },
   { table: "accounts", column: "block_reason", ddl: "ALTER TABLE accounts ADD COLUMN block_reason TEXT NOT NULL DEFAULT ''" },
+  { table: "callers", column: "kind", ddl: "ALTER TABLE callers ADD COLUMN kind TEXT NOT NULL DEFAULT 'personal'" },
+  { table: "callers", column: "company", ddl: "ALTER TABLE callers ADD COLUMN company TEXT NOT NULL DEFAULT ''" },
+  { table: "callers", column: "project", ddl: "ALTER TABLE callers ADD COLUMN project TEXT NOT NULL DEFAULT ''" },
+  { table: "callers", column: "budget", ddl: "ALTER TABLE callers ADD COLUMN budget TEXT NOT NULL DEFAULT ''" },
+  { table: "callers", column: "stage", ddl: "ALTER TABLE callers ADD COLUMN stage TEXT NOT NULL DEFAULT ''" },
+  { table: "profiles", column: "voice_speed", ddl: "ALTER TABLE profiles ADD COLUMN voice_speed REAL NOT NULL DEFAULT 1" },
+  { table: "profiles", column: "voice_stability", ddl: "ALTER TABLE profiles ADD COLUMN voice_stability REAL NOT NULL DEFAULT 0.5" },
+  { table: "profiles", column: "voice_similarity", ddl: "ALTER TABLE profiles ADD COLUMN voice_similarity REAL NOT NULL DEFAULT 0.8" },
+  { table: "profiles", column: "turn_eagerness", ddl: "ALTER TABLE profiles ADD COLUMN turn_eagerness TEXT NOT NULL DEFAULT 'normal'" },
+  { table: "profiles", column: "turn_timeout", ddl: "ALTER TABLE profiles ADD COLUMN turn_timeout INTEGER NOT NULL DEFAULT 7" },
+  { table: "profiles", column: "auto_hangup", ddl: "ALTER TABLE profiles ADD COLUMN auto_hangup INTEGER NOT NULL DEFAULT 1" },
+  { table: "calls", column: "action_items", ddl: "ALTER TABLE calls ADD COLUMN action_items TEXT NOT NULL DEFAULT ''" },
 ];
 
 function migrate(conn: DatabaseSync): void {

@@ -71,6 +71,56 @@ export function CallerForm({
         </div>
       </div>
       <div>
+        <label>Type</label>
+        <div className="net-toggle">
+          <button type="button" className={values.kind === "personal" ? "active" : ""} onClick={() => setValues({ ...values, kind: "personal" })}>
+            👪 Personal
+            <small>family, friends</small>
+          </button>
+          <button type="button" className={values.kind === "client" ? "active" : ""} onClick={() => setValues({ ...values, kind: "client" })}>
+            💼 Client
+            <small>business, projects</small>
+          </button>
+        </div>
+      </div>
+      {values.kind === "client" && (
+        <>
+          <div className="grid2">
+            <div>
+              <label htmlFor="company">Company</label>
+              <input id="company" value={values.company} onChange={set("company")} maxLength={120} placeholder="e.g. Tunde Foods Ltd" />
+            </div>
+            <div>
+              <label htmlFor="budget">Budget discussed</label>
+              <input id="budget" value={values.budget} onChange={set("budget")} maxLength={120} placeholder="e.g. ₦400k" />
+            </div>
+          </div>
+          <div>
+            <label htmlFor="project">Project</label>
+            <textarea
+              id="project"
+              rows={3}
+              value={values.project}
+              onChange={set("project")}
+              maxLength={2000}
+              placeholder="e.g. Restaurant website with menu, online ordering and Paystack payments."
+            />
+          </div>
+          <div>
+            <label htmlFor="stage">Where you are with them</label>
+            <select id="stage" value={values.stage} onChange={set("stage")}>
+              <option value="">Not set</option>
+              <option value="New lead">New lead</option>
+              <option value="Discussing requirements">Discussing requirements</option>
+              <option value="Quote sent">Quote sent</option>
+              <option value="Deposit paid, building">Deposit paid, building</option>
+              <option value="Reviewing with client">Reviewing with client</option>
+              <option value="Delivered">Delivered</option>
+            </select>
+          </div>
+        </>
+      )}
+      <div>
         <label htmlFor="about">About them</label>
         <textarea
           id="about"

@@ -43,7 +43,17 @@ export type AgentSettings = {
   language: string;
   voiceId: string;
   maxDurationSeconds: number;
+  voice?: { speed: number; stability: number; similarity: number };
+  turn?: { eagerness: "patient" | "normal" | "eager"; timeoutSeconds: number };
+  // Lets the AI hang up by itself once the goodbye is said.
+  autoHangup?: boolean;
+  // Websites and files from the ElevenLabs knowledge base.
+  knowledge?: { type: "url" | "file"; id: string; name: string }[];
 };
+
+// Asked of every finished call; read back as data_collection_results.
+const ACTION_ITEMS_DESCRIPTION =
+  "Short list of the things the caller (the person who placed this call, speaking as themself) promised or still needs to do after this call, one per line starting with '- ', e.g. '- Send David the quote by Friday'. Empty if there is nothing.";
 
 // ElevenLabs only accepts the English "v2" models (turbo/flash) for English
 // agents, and the multilingual v2.5 models for other languages.
@@ -52,17 +62,41 @@ export function agentTtsModel(configured: string, language: string): string {
   return configured.replace(/^(eleven_(?:flash|turbo)_v2)$/, "$1_5");
 }
 
-function agentBody(name: string, s: AgentSettings) {
+export function agentBody(name: string, s: AgentSettings) {
   return {
     name,
     conversation_config: {
       agent: {
         first_message: s.firstMessage,
         language: s.language,
-        prompt: { prompt: s.prompt, llm: config.agentLlm },
+        prompt: {
+          prompt: s.prompt,
+          llm: config.agentLlm,
+          knowledge_base: (s.knowledge ?? []).map((k) => ({ type: k.type, id: k.id, name: k.name, usage_mode: "auto" })),
+          built_in_tools: {
+            end_call: s.autoHangup
+              ? {
+                  name: "end_call",
+                  description:
+                    "Hang up the call. Use it only after you have said goodbye and the other person has said goodbye too, or the conversation is clearly over.",
+                  params: { system_tool_type: "end_call" },
+                }
+              : null,
+          },
+        },
       },
-      tts: { voice_id: s.voiceId, model_id: agentTtsModel(config.ttsModel, s.language) },
+      tts: {
+        voice_id: s.voiceId,
+        model_id: agentTtsModel(config.ttsModel, s.language),
+        ...(s.voice ? { speed: s.voice.speed, stability: s.voice.stability, similarity_boost: s.voice.similarity } : {}),
+      },
+      ...(s.turn ? { turn: { turn_eagerness: s.turn.eagerness, turn_timeout: s.turn.timeoutSeconds } } : {}),
       conversation: { max_duration_seconds: s.maxDurationSeconds },
+    },
+    platform_settings: {
+      data_collection: {
+        action_items: { type: "string", description: ACTION_ITEMS_DESCRIPTION },
+      },
     },
   };
 }
@@ -121,7 +155,10 @@ export type ConversationDetail = {
   status: ConversationStatus;
   transcript: { role: "user" | "agent"; message?: string | null }[];
   metadata: { call_duration_secs: number; start_time_unix_secs: number };
-  analysis?: { transcript_summary?: string } | null;
+  analysis?: {
+    transcript_summary?: string;
+    data_collection_results?: Record<string, { value?: unknown }> | null;
+  } | null;
 };
 
 export async function getConversation(conversationId: string): Promise<ConversationDetail> {
@@ -220,4 +257,26 @@ export async function voiceChangeStream(voiceId: string, pcm: Uint8Array<ArrayBu
     throw new ElevenLabsError(`ElevenLabs voice changer failed: ${response.status} ${body.slice(0, 300)}`);
   }
   return response;
+}
+
+// ----------------------------------------------------------- knowledge base
+
+export async function knowledgeFromUrl(url: string, name: string): Promise<string> {
+  const result = await call<{ id: string }>("/convai/knowledge-base/url", {
+    method: "POST",
+    body: JSON.stringify({ url, name }),
+  });
+  return result.id;
+}
+
+export async function knowledgeFromFile(file: Blob, filename: string, name: string): Promise<string> {
+  const form = new FormData();
+  form.append("file", file, filename);
+  form.set("name", name);
+  const result = await call<{ id: string }>("/convai/knowledge-base/file", { method: "POST", body: form });
+  return result.id;
+}
+
+export async function deleteKnowledgeDoc(id: string): Promise<void> {
+  await call(`/convai/knowledge-base/${encodeURIComponent(id)}`, { method: "DELETE" });
 }

@@ -3,7 +3,13 @@ import { languageName } from "./languages.ts";
 
 export type PromptInput = {
   profile: Profile;
-  caller: Pick<Caller, "name" | "relationship" | "about" | "how_we_talk" | "location">;
+  caller: Pick<Caller, "name" | "relationship" | "about" | "how_we_talk" | "location"> &
+    Partial<Pick<Caller, "kind" | "company" | "project" | "budget" | "stage">>;
+  // Extra notes the owner wrote on the Knowledge page.
+  knowledge?: { name: string; content: string }[];
+  // Websites/files are searched by ElevenLabs when needed.
+  hasDocuments?: boolean;
+  autoHangup?: boolean;
   topics: string;
   languageCode: string;
   localTime: string;
@@ -33,6 +39,8 @@ ${section("ABOUT ME:", [profile.location && `I live in ${profile.location}.`, pr
 ${section("HOW I TALK:", profile.speaking_style)}
 ${section(`ABOUT ${caller.name.toUpperCase()}:`, [caller.location && `${caller.name} lives in ${caller.location}.`, caller.about].filter(Boolean).join("\n"))}
 ${section(`HOW ${caller.name.toUpperCase()} AND I USUALLY TALK:`, caller.how_we_talk)}
+${caller.kind === "client" ? section(`ABOUT THIS CLIENT WORK:`, [caller.company && `Company: ${caller.company}`, caller.project && `Project: ${caller.project}`, caller.budget && `Budget discussed: ${caller.budget}`, caller.stage && `Where we are: ${caller.stage}`].filter(Boolean).join("\n")) : ""}
+${section("THINGS I KNOW (my notes):", (input.knowledge ?? []).map((k) => `${k.name}:\n${k.content.trim()}`).join("\n\n"))}${input.hasDocuments ? "I also have my own documents and website pages I can look things up in when someone asks for details.\n" : ""}
 ${section("OUR LAST CALLS (most recent last):", memory)}
 WHAT I WANT TO TALK ABOUT ON THIS CALL:
 ${input.topics.trim() || "Just a friendly catch-up."}
@@ -46,7 +54,8 @@ HOW I HANDLE THE CALL:
 - I don't agree to new plans, money or promises beyond what the topics say; I say "let me think about it" instead.
 - I never ask for or share passwords, PINs, one-time codes, card numbers or wallet keys, and never give out bank account numbers or wallet addresses.
 - If ${caller.name} seriously and directly asks whether this is a robot or an AI, I don't lie about it. I answer in my own voice, for example: "Haha, you caught me, that's my AI voice. I'll call you back myself." Otherwise I never bring it up.
-- When it's time to end the call, I finish my point, say goodbye the way I normally would with ${caller.name}, and stop.
+- During the call I may get private notes from myself starting with "PRIVATE NOTE". They are my own thoughts, typed while I listen. I act on them naturally in what I say next, as if it was my own idea. I never read them out or mention notes.
+- When it's time to end the call, I finish my point, say goodbye the way I normally would with ${caller.name}, and stop.${input.autoHangup ? " Once we've both said goodbye, I hang up." : ""}
 - No lists, markdown, emojis or stage directions. Everything I say is spoken aloud.`;
 }
 

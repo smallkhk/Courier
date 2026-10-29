@@ -28,6 +28,25 @@ export type Profile = {
   speaking_style: string;
 };
 
+// How the AI sounds and behaves on calls (set on the profile page).
+export type CallSettings = {
+  voice_speed: number;
+  voice_stability: number;
+  voice_similarity: number;
+  turn_eagerness: "patient" | "normal" | "eager";
+  turn_timeout: number;
+  auto_hangup: number;
+};
+
+export type KnowledgeItem = {
+  id: string;
+  kind: "text" | "url" | "file";
+  name: string;
+  content: string;
+  el_doc_id: string | null;
+  created_at: number;
+};
+
 export type Caller = {
   id: string;
   name: string;
@@ -40,6 +59,11 @@ export type Caller = {
   voice_id: string;
   opening: "wait" | "greet" | "custom";
   custom_opening: string;
+  kind: "personal" | "client";
+  company: string;
+  project: string;
+  budget: string;
+  stage: string;
   created_at: number;
   updated_at: number;
 };
@@ -56,6 +80,7 @@ export type Call = {
   charged_micros: number;
   transcript: TranscriptLine[];
   summary: string;
+  action_items: string;
   created_at: number;
   ended_at: number | null;
 };
@@ -153,6 +178,36 @@ export function getProfile(accountId: string): Profile {
   return plainOrUndefined<Profile>(row) ?? { ...EMPTY_PROFILE };
 }
 
+const DEFAULT_CALL_SETTINGS: CallSettings = {
+  voice_speed: 1,
+  voice_stability: 0.5,
+  voice_similarity: 0.8,
+  turn_eagerness: "normal",
+  turn_timeout: 7,
+  auto_hangup: 1,
+};
+
+export function getCallSettings(accountId: string): CallSettings {
+  const row = getDb()
+    .prepare(
+      "SELECT voice_speed, voice_stability, voice_similarity, turn_eagerness, turn_timeout, auto_hangup FROM profiles WHERE account_id = ?",
+    )
+    .get(accountId);
+  return plainOrUndefined<CallSettings>(row) ?? { ...DEFAULT_CALL_SETTINGS };
+}
+
+export function saveCallSettings(accountId: string, s: CallSettings): void {
+  getDb()
+    .prepare(
+      `INSERT INTO profiles (account_id, voice_speed, voice_stability, voice_similarity, turn_eagerness, turn_timeout, auto_hangup, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(account_id) DO UPDATE SET voice_speed = excluded.voice_speed, voice_stability = excluded.voice_stability,
+         voice_similarity = excluded.voice_similarity, turn_eagerness = excluded.turn_eagerness,
+         turn_timeout = excluded.turn_timeout, auto_hangup = excluded.auto_hangup, updated_at = excluded.updated_at`,
+    )
+    .run(accountId, s.voice_speed, s.voice_stability, s.voice_similarity, s.turn_eagerness, s.turn_timeout, s.auto_hangup, now());
+}
+
 export function saveProfile(accountId: string, profile: Profile): void {
   getDb()
     .prepare(
@@ -168,7 +223,7 @@ export function saveProfile(accountId: string, profile: Profile): void {
 // ----------------------------------------------------------------- callers
 
 const CALLER_COLUMNS =
-  "id, name, relationship, about, how_we_talk, location, timezone, language, voice_id, opening, custom_opening, created_at, updated_at";
+  "id, name, relationship, about, how_we_talk, location, timezone, language, voice_id, opening, custom_opening, kind, company, project, budget, stage, created_at, updated_at";
 
 export function listCallers(accountId: string): Caller[] {
   return plainAll<Caller>(getDb()
@@ -190,11 +245,11 @@ export function insertCaller(accountId: string, f: CallerFields): Caller {
   getDb()
     .prepare(
       `INSERT INTO callers (id, account_id, name, relationship, about, how_we_talk, location, timezone, language,
-         voice_id, opening, custom_opening, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         voice_id, opening, custom_opening, kind, company, project, budget, stage, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(id, accountId, f.name, f.relationship, f.about, f.how_we_talk, f.location, f.timezone, f.language,
-      f.voice_id, f.opening, f.custom_opening, ts, ts);
+      f.voice_id, f.opening, f.custom_opening, f.kind, f.company, f.project, f.budget, f.stage, ts, ts);
   return getCaller(accountId, id)!;
 }
 
@@ -202,11 +257,12 @@ export function updateCaller(accountId: string, id: string, f: CallerFields): bo
   const result = getDb()
     .prepare(
       `UPDATE callers SET name = ?, relationship = ?, about = ?, how_we_talk = ?, location = ?, timezone = ?,
-         language = ?, voice_id = ?, opening = ?, custom_opening = ?, updated_at = ?
+         language = ?, voice_id = ?, opening = ?, custom_opening = ?, kind = ?, company = ?, project = ?,
+         budget = ?, stage = ?, updated_at = ?
        WHERE account_id = ? AND id = ?`,
     )
     .run(f.name, f.relationship, f.about, f.how_we_talk, f.location, f.timezone, f.language, f.voice_id,
-      f.opening, f.custom_opening, now(), accountId, id);
+      f.opening, f.custom_opening, f.kind, f.company, f.project, f.budget, f.stage, now(), accountId, id);
   return result.changes === 1;
 }
 
@@ -223,7 +279,7 @@ export function deleteCaller(accountId: string, id: string): void {
 
 type CallRow = Omit<Call, "transcript"> & { transcript: string };
 const CALL_COLUMNS =
-  "id, caller_id, topics, status, conversation_id, duration_secs, charged_micros, transcript, summary, created_at, ended_at";
+  "id, caller_id, topics, status, conversation_id, duration_secs, charged_micros, transcript, summary, action_items, created_at, ended_at";
 
 function toCall(row: CallRow): Call {
   return { ...row, transcript: JSON.parse(row.transcript) as TranscriptLine[] };
@@ -288,6 +344,7 @@ export function recordConversation(
     chargedMicros: number;
     transcript: TranscriptLine[];
     summary: string;
+    actionItems?: string;
   },
 ): boolean {
   return transaction(() => {
@@ -309,7 +366,7 @@ export function recordConversation(
     }
     db.prepare(
       `UPDATE calls SET status = ?, conversation_id = ?, duration_secs = ?, charged_micros = ?, transcript = ?,
-         summary = ?, ended_at = ?
+         summary = ?, action_items = ?, ended_at = ?
        WHERE account_id = ? AND id = ?`,
     ).run(
       conv.status,
@@ -318,6 +375,7 @@ export function recordConversation(
       conv.chargedMicros,
       JSON.stringify(conv.transcript),
       conv.summary,
+      conv.actionItems ?? "",
       conv.startedAt + conv.durationSecs,
       accountId,
       callId,
@@ -405,4 +463,35 @@ export function getDeposit(accountId: string, id: string): Deposit | undefined {
     .prepare(`SELECT ${DEPOSIT_COLUMNS} FROM deposits WHERE account_id = ? AND id = ?`)
     .get(accountId, id),
   );
+}
+
+// --------------------------------------------------------------- knowledge
+
+export function listKnowledge(accountId: string): KnowledgeItem[] {
+  return plainAll<KnowledgeItem>(
+    getDb()
+      .prepare("SELECT id, kind, name, content, el_doc_id, created_at FROM knowledge WHERE account_id = ? ORDER BY created_at")
+      .all(accountId),
+  );
+}
+
+export function insertKnowledge(
+  accountId: string,
+  k: { kind: KnowledgeItem["kind"]; name: string; content: string; elDocId: string | null },
+): void {
+  getDb()
+    .prepare("INSERT INTO knowledge (id, account_id, kind, name, content, el_doc_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)")
+    .run(randomUUID(), accountId, k.kind, k.name, k.content, k.elDocId, now());
+}
+
+export function getKnowledge(accountId: string, id: string): KnowledgeItem | undefined {
+  return plainOrUndefined<KnowledgeItem>(
+    getDb()
+      .prepare("SELECT id, kind, name, content, el_doc_id, created_at FROM knowledge WHERE account_id = ? AND id = ?")
+      .get(accountId, id),
+  );
+}
+
+export function deleteKnowledge(accountId: string, id: string): void {
+  getDb().prepare("DELETE FROM knowledge WHERE account_id = ? AND id = ?").run(accountId, id);
 }

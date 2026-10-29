@@ -14,6 +14,11 @@ export const CallerInput = z
     voice_id: z.string().min(1, "Pick a voice"),
     opening: z.enum(["wait", "greet", "custom"]),
     custom_opening: z.string().trim().max(300),
+    kind: z.enum(["personal", "client"]).default("personal"),
+    company: z.string().trim().max(120).default(""),
+    project: z.string().trim().max(2000).default(""),
+    budget: z.string().trim().max(120).default(""),
+    stage: z.string().trim().max(120).default(""),
   })
   .refine((c) => c.opening !== "custom" || c.custom_opening.length > 0, {
     message: "Write the opening line, or pick another opening",

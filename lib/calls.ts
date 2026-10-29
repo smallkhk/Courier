@@ -14,6 +14,8 @@ import {
   abandonStaleCalls,
   getAgentId,
   getCaller,
+  getCallSettings,
+  listKnowledge,
   getCredit,
   getProfile,
   hasRecentStart,
@@ -25,6 +27,12 @@ import {
   type Call,
 } from "./repo.ts";
 import { isVoiceAllowed } from "./voices.ts";
+
+// The action items ElevenLabs extracted after the call (see agentBody).
+export function actionItemsFrom(detail: { analysis?: { data_collection_results?: Record<string, { value?: unknown }> | null } | null }): string {
+  const value = detail.analysis?.data_collection_results?.action_items?.value;
+  return typeof value === "string" ? value.trim().slice(0, 2000) : "";
+}
 
 export function callChargeMicros(durationSecs: number): number {
   return Math.ceil((Math.max(0, durationSecs) * config.pricePerMinuteMicros) / 60);
@@ -68,6 +76,7 @@ export async function settleAccount(accountId: string): Promise<{ settled: numbe
         .filter((line) => line.message)
         .map((line) => ({ role: line.role, message: line.message! })),
       summary: detail.analysis?.transcript_summary ?? "",
+      actionItems: actionItemsFrom(detail),
     });
     if (recorded) settled++;
   }
@@ -108,6 +117,11 @@ export async function startCall(
       : caller.opening === "greet" && input.language === "en"
         ? `${timeGreeting(caller.timezone)}, ${caller.name}!`
         : "";
+  const callSettings = getCallSettings(accountId);
+  const knowledge = listKnowledge(accountId);
+  const documents = knowledge
+    .filter((k) => k.kind !== "text" && k.el_doc_id)
+    .map((k) => ({ type: k.kind as "url" | "file", id: k.el_doc_id!, name: k.name }));
   const settings: AgentSettings = {
     prompt: buildCallPrompt({
       profile,
@@ -116,11 +130,22 @@ export async function startCall(
       languageCode: input.language,
       localTime: localTimeLabel(caller.timezone),
       memory,
+      knowledge: knowledge.filter((k) => k.kind === "text").map((k) => ({ name: k.name, content: k.content })),
+      hasDocuments: documents.length > 0,
+      autoHangup: Boolean(callSettings.auto_hangup),
     }),
     firstMessage,
     language: input.language,
     voiceId: input.voiceId,
     maxDurationSeconds: maxSeconds,
+    voice: {
+      speed: callSettings.voice_speed,
+      stability: callSettings.voice_stability,
+      similarity: callSettings.voice_similarity,
+    },
+    turn: { eagerness: callSettings.turn_eagerness, timeoutSeconds: callSettings.turn_timeout },
+    autoHangup: Boolean(callSettings.auto_hangup),
+    knowledge: documents,
   };
 
   const name = `${config.platformName} ${accountId}`;

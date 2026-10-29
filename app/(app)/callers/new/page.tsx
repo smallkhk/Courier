@@ -23,6 +23,11 @@ export default async function NewCaller() {
             voice_id: voices[0].id,
             opening: "wait",
             custom_opening: "",
+            kind: "personal",
+            company: "",
+            project: "",
+            budget: "",
+            stage: "",
           }}
         />
       </section>

@@ -26,6 +26,11 @@ const callerFields = {
   voice_id: "v",
   opening: "wait" as const,
   custom_opening: "",
+  kind: "personal" as const,
+  company: "",
+  project: "",
+  budget: "",
+  stage: "",
 };
 
 test("calls are charged per second and capped by balance", () => {
@@ -139,4 +144,54 @@ test("code words stay valid for a day, including ones saved in the old format", 
   assert.deepEqual(consentWords("cw"), ["a", "b", "c", "d"]); // issued an hour ago: still fine
   kvSet("clone_words:cw", JSON.stringify({ words: ["a"], issued: now - 25 * 60 * 60 }));
   assert.equal(consentWords("cw"), null);
+});
+
+test("agent settings carry voice, turn-taking, hang-up, knowledge and action items", async () => {
+  const { agentBody } = await import("../lib/elevenlabs.ts");
+  const base = { prompt: "p", firstMessage: "", language: "en", voiceId: "v", maxDurationSeconds: 300 };
+  const full = agentBody("a", {
+    ...base,
+    voice: { speed: 1.1, stability: 0.3, similarity: 0.9 },
+    turn: { eagerness: "patient", timeoutSeconds: 10 },
+    autoHangup: true,
+    knowledge: [{ type: "url", id: "doc1", name: "Site" }],
+  });
+  const cc = full.conversation_config as Record<string, any>;
+  assert.equal(cc.tts.speed, 1.1);
+  assert.equal(cc.tts.stability, 0.3);
+  assert.equal(cc.tts.similarity_boost, 0.9);
+  assert.deepEqual(cc.turn, { turn_eagerness: "patient", turn_timeout: 10 });
+  assert.equal(cc.agent.prompt.built_in_tools.end_call.params.system_tool_type, "end_call");
+  assert.deepEqual(cc.agent.prompt.knowledge_base, [{ type: "url", id: "doc1", name: "Site", usage_mode: "auto" }]);
+  assert.equal(full.platform_settings.data_collection.action_items.type, "string");
+  const plain = agentBody("a", base).conversation_config as Record<string, any>;
+  assert.equal(plain.agent.prompt.built_in_tools.end_call, null);
+  assert.equal(plain.turn, undefined);
+});
+
+test("action items are read from the call analysis", async () => {
+  const { actionItemsFrom } = await import("../lib/calls.ts");
+  assert.equal(actionItemsFrom({ analysis: { data_collection_results: { action_items: { value: "- Send quote\n" } } } }), "- Send quote");
+  assert.equal(actionItemsFrom({ analysis: null }), "");
+  assert.equal(actionItemsFrom({ analysis: { data_collection_results: { action_items: { value: 3 } } } }), "");
+});
+
+test("the call prompt includes client details, notes and the private-note rule", () => {
+  const prompt = buildCallPrompt({
+    profile: { full_name: "Emmanuel", nickname: "", location: "", about: "", speaking_style: "" },
+    caller: { name: "Tunde", relationship: "client", about: "", how_we_talk: "", location: "", kind: "client", company: "Tunde Foods", project: "Restaurant site", budget: "₦400k", stage: "Quote sent" },
+    topics: "Follow up on the quote",
+    languageCode: "en",
+    localTime: "Monday 10:00",
+    memory: [],
+    knowledge: [{ name: "My prices", content: "Landing page ₦150k" }],
+    hasDocuments: true,
+    autoHangup: true,
+  });
+  assert.match(prompt, /Company: Tunde Foods/);
+  assert.match(prompt, /Where we are: Quote sent/);
+  assert.match(prompt, /My prices:\nLanding page ₦150k/);
+  assert.match(prompt, /documents and website pages/);
+  assert.match(prompt, /PRIVATE NOTE/);
+  assert.match(prompt, /I hang up/);
 });

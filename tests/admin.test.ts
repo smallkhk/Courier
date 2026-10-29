@@ -85,7 +85,7 @@ test("deleting a user removes their account and data", async () => {
   makeUser("u-4", "four@x.com", 1_000_000);
   repo.insertCaller("acct-u-4", {
     name: "Tunde", relationship: "", about: "", how_we_talk: "", location: "", timezone: "Africa/Lagos",
-    language: "en", voice_id: "v", opening: "wait", custom_opening: "",
+    language: "en", voice_id: "v", opening: "wait", custom_opening: "", kind: "personal", company: "", project: "", budget: "", stage: "",
   });
   await admin.deleteUser("boss@x.com", "u-admin", "u-4");
   assert.equal(admin.getUser("u-4"), undefined);

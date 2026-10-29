@@ -397,3 +397,12 @@ td { padding: 12px 6px; border-top: 1px solid var(--border); }
 .toggle button { background: transparent; box-shadow: none; color: var(--muted); padding: 6px 14px; font-size: 0.82rem; }
 .toggle button.on { background: var(--grad); color: #fff; }
 .banner { background: var(--grad-soft); border-bottom: 1px solid rgba(167, 139, 250, 0.35); text-align: center; font-size: 0.88rem; padding: 10px 16px; }
+
+input[type="range"] { padding: 0; height: 6px; border: 0; border-radius: 999px; background: var(--surface-2); accent-color: var(--violet); margin: 10px 0 4px; }
+input[type="range"]:focus { box-shadow: none; }
+.whisper { display: flex; gap: 8px; margin-top: 16px; }
+.whisper input { flex: 1; min-width: 0; }
+.chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; justify-content: center; }
+.chips button { padding: 6px 12px; font-size: 0.78rem; }
+.recap { text-align: left; }
+.recap pre { white-space: pre-wrap; font: inherit; margin: 6px 0 0; }

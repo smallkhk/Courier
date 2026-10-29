@@ -1,8 +1,10 @@
 import { Avatar } from "@/components/Avatar";
 import { LogoutButton } from "@/components/LogoutButton";
+import { CallSettingsForm } from "@/components/CallSettingsForm";
+import { KnowledgeManager } from "@/components/KnowledgeManager";
 import { ProfileForm } from "@/components/ProfileForm";
 import { pageUser } from "@/lib/page-auth.ts";
-import { getProfile } from "@/lib/repo.ts";
+import { getCallSettings, getProfile, listKnowledge } from "@/lib/repo.ts";
 
 export default async function ProfilePage() {
   const user = await pageUser();
@@ -20,6 +22,8 @@ export default async function ProfilePage() {
         Your AI speaks as you on every call. Tell it what it needs to know, and only update this when something changes.
       </p>
       <ProfileForm initial={profile} />
+      <KnowledgeManager items={listKnowledge(user.accountId)} />
+      <CallSettingsForm initial={getCallSettings(user.accountId)} />
       <div style={{ textAlign: "center", marginTop: 20 }}>
         <LogoutButton />
       </div>

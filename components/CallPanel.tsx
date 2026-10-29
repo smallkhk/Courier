@@ -185,7 +185,7 @@ function Panel({ callerId, callerName, defaultVoiceId, defaultLanguage, voices, 
   }
 
   const connecting = starting || conversation.status === "connecting";
-  const lastSummary = calls.find((c) => c.summary)?.summary;
+  const lastDone = calls.find((c) => c.conversation_id && (c.summary || c.action_items));
   const pastCalls = calls.filter((c) => c.conversation_id);
 
   if (live || connecting) {
@@ -243,6 +243,7 @@ function Panel({ callerId, callerName, defaultVoiceId, defaultLanguage, voices, 
             </span>
           </div>
         )}
+        {live && <Whisper onSend={(text) => conversation.sendContextualUpdate(`PRIVATE NOTE: ${text}`)} />}
         {lines.length > 0 && (
           <div style={{ marginTop: 22 }}>
             <Transcript lines={lines} callerName={callerName} />
@@ -257,12 +258,7 @@ function Panel({ callerId, callerName, defaultVoiceId, defaultLanguage, voices, 
     <>
       <section className="card stack">
         <h2>Today&apos;s call</h2>
-        {lastSummary && (
-          <div className="memory">
-            <strong>Last time · </strong>
-            {lastSummary}
-          </div>
-        )}
+        {lastDone && <Recap call={lastDone} callerName={callerName} />}
         <div>
           <label htmlFor="topics">What should your AI talk about?</label>
           <textarea
@@ -347,6 +343,12 @@ function Panel({ callerId, callerName, defaultVoiceId, defaultLanguage, voices, 
                       </p>
                     )}
                     {c.summary && <div className="memory">{c.summary}</div>}
+                    {c.action_items && (
+                      <div className="tip" style={{ display: "block" }}>
+                        <strong>To do</strong>
+                        <pre style={{ whiteSpace: "pre-wrap", font: "inherit", margin: "4px 0 0" }}>{c.action_items}</pre>
+                      </div>
+                    )}
                     {c.transcript.length > 0 && (
                       <Transcript lines={c.transcript.map((l, i) => ({ ...l, key: i }))} callerName={callerName} />
                     )}
@@ -358,5 +360,100 @@ function Panel({ callerId, callerName, defaultVoiceId, defaultLanguage, voices, 
         )}
       </section>
     </>
+  );
+}
+
+const QUICK_NOTES = ["Ask how they're doing", "Change the topic", "Start wrapping up", "Don't agree to anything yet"];
+
+// Private notes you type during the call. The AI acts on them in what it
+// says next, without reading them out.
+function Whisper({ onSend }: { onSend: (text: string) => void }) {
+  const [text, setText] = useState("");
+  const [sent, setSent] = useState("");
+
+  function send(note: string) {
+    const clean = note.trim();
+    if (!clean) return;
+    onSend(clean);
+    setSent(clean);
+    setText("");
+    setTimeout(() => setSent(""), 4000);
+  }
+
+  return (
+    <div style={{ marginTop: 18 }}>
+      <form
+        className="whisper"
+        onSubmit={(e) => {
+          e.preventDefault();
+          send(text);
+        }}
+      >
+        <input
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          maxLength={300}
+          placeholder="Whisper to your AI… e.g. tell him the price is ₦200k"
+          aria-label="Private note to your AI"
+        />
+        <button type="submit" disabled={!text.trim()}>
+          Send
+        </button>
+      </form>
+      <div className="chips">
+        {QUICK_NOTES.map((n) => (
+          <button key={n} type="button" className="secondary" onClick={() => send(n)}>
+            {n}
+          </button>
+        ))}
+      </div>
+      {sent && <p className="small ok" style={{ marginTop: 6 }}>✓ Your AI got it: “{sent}”</p>}
+    </div>
+  );
+}
+
+// The latest call's summary and to-dos, ready to copy or send on WhatsApp.
+function Recap({ call, callerName }: { call: Call; callerName: string }) {
+  const [copied, setCopied] = useState(false);
+  const date = new Date(call.created_at * 1000).toLocaleDateString();
+  const text = [`Call with ${callerName} (${date})`, call.summary, call.action_items && `To do:\n${call.action_items}`]
+    .filter(Boolean)
+    .join("\n\n");
+  return (
+    <div className="memory recap">
+      <div className="row spread">
+        <strong>Last call recap · {date}</strong>
+        <span className="row" style={{ gap: 6 }}>
+          <button
+            type="button"
+            className="secondary"
+            style={{ padding: "5px 12px", fontSize: "0.78rem" }}
+            onClick={async () => {
+              await navigator.clipboard.writeText(text);
+              setCopied(true);
+              setTimeout(() => setCopied(false), 1500);
+            }}
+          >
+            {copied ? "Copied" : "Copy"}
+          </button>
+          <a
+            className="button secondary"
+            style={{ padding: "5px 12px", fontSize: "0.78rem" }}
+            href={`https://wa.me/?text=${encodeURIComponent(text)}`}
+            target="_blank"
+            rel="noreferrer"
+          >
+            WhatsApp
+          </a>
+        </span>
+      </div>
+      {call.summary && <p style={{ margin: "6px 0 0" }}>{call.summary}</p>}
+      {call.action_items && (
+        <>
+          <strong style={{ display: "block", marginTop: 8 }}>To do</strong>
+          <pre>{call.action_items}</pre>
+        </>
+      )}
+    </div>
   );
 }
