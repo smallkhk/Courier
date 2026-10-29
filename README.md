@@ -72,9 +72,17 @@ Talk into your mic and come out in another voice (or your own clone), live. The 
 
 ## Hosting on Namecheap / cPanel
 
+Paste this in cPanel → Terminal. It installs (or updates) everything into `~/voice`:
+
+```
+bash <(curl -fsSL https://raw.githubusercontent.com/smallkhk/Courier/claude/voice-practice/scripts/install-cpanel.sh)
+```
+
+GitHub Actions (`.github/workflows/voice-release.yml`) builds `voice.zip` and the Windows installer `VoiceChanger-Setup.exe` on every push and publishes them on the **voice-latest** release.
+
 See **[docs/NAMECHEAP.md](docs/NAMECHEAP.md)**.
 
-1. `npm run package:namecheap` builds `deploy/callmate.zip`, a self-contained app (Next.js standalone) that needs no `npm install` on the server.
+1. `npm run package:namecheap` builds `deploy/voice.zip`, a self-contained app (Next.js standalone) that needs no `npm install` on the server.
 2. Upload it with the startup file `app.cjs`.
 3. Add a `.env`.
 4. Add one Cron Job for payments.

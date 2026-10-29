@@ -1,0 +1,78 @@
+# Builds the website package for cPanel (voice.zip) and the Windows voice
+# changer installer (VoiceChanger-Setup.exe), and publishes both on the
+# "voice-latest" release. scripts/install-cpanel.sh downloads voice.zip
+# from there.
+#
+# Optional: set a repository variable APP_URL (Settings → Secrets and
+# variables → Actions → Variables), e.g. https://voice.yourdomain.com, to
+# build your site address into the Windows app. Without it, the app asks
+# for the address on first launch.
+name: Build voice release
+
+on:
+  push:
+    branches: [claude/voice-practice]
+    paths-ignore: ["**.md"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: voice-release
+  cancel-in-progress: true
+
+env:
+  TAG: voice-latest
+
+jobs:
+  web:
+    name: Website package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run typecheck
+      - run: npm run package:namecheap
+      - name: Publish voice.zip
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Point the release at this commit and replace its files.
+          gh release delete "$TAG" --yes --cleanup-tag 2>/dev/null || true
+          gh release create "$TAG" deploy/voice.zip \
+            --target "$GITHUB_SHA" \
+            --title "Voice (latest)" \
+            --notes "Built from ${GITHUB_SHA::7}. Install or update on cPanel with: bash <(curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/${{ github.ref_name }}/scripts/install-cpanel.sh)"
+
+  desktop:
+    name: Windows app
+    needs: web
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: desktop
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Build in the site address
+        if: ${{ vars.APP_URL != '' }}
+        shell: pwsh
+        run: |
+          $config = Get-Content config.json | ConvertFrom-Json
+          $config.appUrl = "${{ vars.APP_URL }}"
+          $config | ConvertTo-Json | Set-Content config.json
+      - run: npm install
+      - run: npx electron-builder --win nsis --publish never
+      - name: Publish VoiceChanger-Setup.exe
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: gh release upload "$TAG" dist/VoiceChanger-Setup.exe --clobber

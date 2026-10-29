@@ -16,8 +16,19 @@
   "build": {
     "appId": "com.callmate.voicechanger",
     "productName": "CallMate Voice Changer",
-    "files": ["main.cjs", "preload.cjs", "config.json"],
-    "win": { "target": "nsis" },
-    "nsis": { "oneClick": false, "allowToChangeInstallationDirectory": true, "createDesktopShortcut": true }
+    "files": [
+      "main.cjs",
+      "preload.cjs",
+      "config.json"
+    ],
+    "win": {
+      "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "artifactName": "VoiceChanger-Setup.${ext}"
+    }
   }
 }

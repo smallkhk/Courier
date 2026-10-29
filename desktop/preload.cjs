@@ -10,6 +10,9 @@ contextBridge.exposeInMainWorld("callmateDesktop", {
     ipcRenderer.on("talk-toggle", handler);
     return () => ipcRenderer.removeListener("talk-toggle", handler);
   },
+  saveSite(url) {
+    return ipcRenderer.invoke("save-site", url);
+  },
   openExternal(url) {
     return ipcRenderer.invoke("open-external", url);
   },

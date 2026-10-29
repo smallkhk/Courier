@@ -1,12 +1,13 @@
 // Builds a folder ready to upload to cPanel / Namecheap shared hosting:
 //   npm run package:namecheap
-// Output: deploy/callmate (and deploy/callmate.zip when zip is available).
+// Output: deploy/voice (and deploy/voice.zip, with the app at the zip's
+// root, when zip is available). scripts/install-cpanel.sh installs it.
 import { cpSync, existsSync, mkdirSync, rmSync } from "node:fs";
 import { execSync } from "node:child_process";
 import { join } from "node:path";
 
 const root = process.cwd();
-const out = join(root, "deploy", "callmate");
+const out = join(root, "deploy", "voice");
 if (!existsSync(join(root, ".next", "standalone", "server.js"))) {
   console.error("Run `next build` first (npm run package:namecheap does both).");
   process.exit(1);
@@ -32,8 +33,8 @@ cpSync(join(root, ".env.example"), join(out, ".env.example"));
 cpSync(join(root, "docs", "NAMECHEAP.md"), join(out, "NAMECHEAP.md"));
 
 try {
-  execSync("zip -qr callmate.zip callmate", { cwd: join(root, "deploy"), stdio: "inherit" });
-  console.log("Ready: deploy/callmate.zip");
+  execSync("zip -qr ../voice.zip .", { cwd: out, stdio: "inherit" });
+  console.log("Ready: deploy/voice.zip");
 } catch {
-  console.log("Ready: deploy/callmate (zip this folder to upload it)");
+  console.log("Ready: deploy/voice (zip this folder's contents to upload it)");
 }
