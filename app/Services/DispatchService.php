@@ -112,7 +112,7 @@ class DispatchService
             ->where('is_active', true)
             ->whereHas('user', fn ($q) => $q->where('status', 'active')->where('role', 'rider'))
             ->get()
-            ->map(function (RiderProfile $p) {
+            ->map(function (RiderProfile $p) use ($zoneIds) {
                 $p->open_jobs = $p->activeAssignmentCount();
                 $p->in_zone = in_array($p->service_zone_id, $zoneIds, true);
 
