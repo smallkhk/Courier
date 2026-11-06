@@ -22,7 +22,8 @@ class ZoneResolver
         $country = strtoupper(trim((string) $country));
         $region = Regions::normalize($country, $region);
         $postalN = strtoupper(preg_replace('/\s+/', '', (string) $postal));
-        $cityN = mb_strtolower(trim((string) $city));
+        $cityN = self::key($city);
+        $regionN = self::key($region);
 
         $best = null;
         $bestScore = -1;
@@ -40,7 +41,7 @@ class ZoneResolver
                 }
                 $score += 1000 + $hit * 10;
             }
-            $cities = array_map(fn ($c) => mb_strtolower(trim($c)), $z->cities ?? []);
+            $cities = array_map(fn ($c) => self::key($c), $z->cities ?? []);
             if ($cities) {
                 if (! in_array($cityN, $cities, true)) {
                     continue;
@@ -49,7 +50,7 @@ class ZoneResolver
             }
             $regions = array_map(fn ($r) => Regions::normalize($country, $r), $z->regions ?? []);
             if ($regions) {
-                if (! $region || ! in_array(mb_strtolower($region), array_map('mb_strtolower', $regions), true)) {
+                if ($regionN === '' || ! in_array($regionN, array_map(fn ($r) => self::key($r), $regions), true)) {
                     continue;
                 }
                 $score += 100;
@@ -61,6 +62,15 @@ class ZoneResolver
         }
 
         return $best;
+    }
+
+    /**
+     * Comparison key that ignores case, spaces and punctuation, so map-search spellings like
+     * "Bei Jing Shi", "Beijing-Shi" and "beijing shi" all match a zone listing "Beijing Shi".
+     */
+    public static function key(?string $s): string
+    {
+        return mb_strtolower((string) preg_replace('/[\s\-_.,\'’()]+/u', '', (string) $s));
     }
 
     private function zones(bool $activeOnly): Collection

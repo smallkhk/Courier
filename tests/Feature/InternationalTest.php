@@ -58,6 +58,8 @@ class InternationalTest extends TestCase
         $from = $z->resolve('NG', 'Lagos', null, 'Ikeja');
         $to = $z->resolve('US', 'Texas', '77002', 'Houston');
         $this->assertSame([$lagos->id, $texas->id], [$from->id, $to->id], 'the most specific zone is chosen');
+        $bj = ServiceZone::create(['code' => 'CN-BJ', 'name' => 'Beijing', 'country_code' => 'CN', 'regions' => ['Beijing Shi', '北京市']]);
+        $this->assertSame($bj->id, (new ZoneResolver)->resolve('CN', 'Bei Jing Shi', '100035', 'Xi Cheng Qu')->id, 'spacing in map-search spellings is ignored');
 
         $pricing = app(PricingService::class);
         $quote = fn () => $pricing->quote(['service_id' => $svc->id, 'origin_zone_id' => $from->id, 'destination_zone_id' => $to->id,
