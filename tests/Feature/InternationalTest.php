@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Models\PricingRule;
+use App\Models\Service;
 use App\Models\ServiceZone;
 use App\Models\Shipment;
 use App\Services\PricingService;
@@ -39,6 +41,31 @@ class InternationalTest extends TestCase
     {
         ServiceZone::create(['code' => 'US', 'name' => 'USA', 'country_code' => 'US']);
         $this->assertNull((new ZoneResolver)->resolve('FR', null, '75001', 'Paris'));
+    }
+
+    public function test_state_zones_inherit_country_service_and_price_until_given_their_own(): void
+    {
+        $ng = ServiceZone::create(['code' => 'NG', 'name' => 'Nigeria', 'country_code' => 'NG']);
+        $us = ServiceZone::create(['code' => 'US', 'name' => 'United States', 'country_code' => 'US']);
+        $lagos = ServiceZone::create(['code' => 'NG-LA', 'name' => 'Lagos', 'country_code' => 'NG', 'regions' => ['Lagos', 'LA']]);
+        $texas = ServiceZone::create(['code' => 'US-TX', 'name' => 'Texas', 'country_code' => 'US', 'regions' => ['TX']]);
+        $svc = Service::create(['code' => 'NG-US', 'name' => 'NG to US']);
+        $svc->zones()->sync([$ng->id, $us->id]); // states are NOT attached
+        $base = ['service_id' => $svc->id, 'currency' => 'USD', 'weight_unit' => 'kg', 'volumetric_divisor' => 5000, 'included_weight' => 1, 'per_weight_fee' => 10];
+        PricingRule::create($base + ['name' => 'Country rate', 'origin_zone_id' => $ng->id, 'destination_zone_id' => $us->id, 'base_fee' => 50]);
+
+        $z = new ZoneResolver;
+        $from = $z->resolve('NG', 'Lagos', null, 'Ikeja');
+        $to = $z->resolve('US', 'Texas', '77002', 'Houston');
+        $this->assertSame([$lagos->id, $texas->id], [$from->id, $to->id], 'the most specific zone is chosen');
+
+        $pricing = app(PricingService::class);
+        $quote = fn () => $pricing->quote(['service_id' => $svc->id, 'origin_zone_id' => $from->id, 'destination_zone_id' => $to->id,
+            'parcels' => [['weight_kg' => 1]], 'pickup_requested' => false]);
+        $this->assertSame('50.00', $quote()->total, 'state zones use the country-wide service and price');
+
+        PricingRule::create($base + ['name' => 'Lagos rate', 'origin_zone_id' => $lagos->id, 'destination_zone_id' => $us->id, 'base_fee' => 40]);
+        $this->assertSame('40.00', $quote()->total, 'a state\'s own price wins over its country');
     }
 
     public function test_phone_countries_and_regions(): void

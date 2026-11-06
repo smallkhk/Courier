@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Enums\ShipmentStatus;
 use App\Models\RiderAssignment;
 use App\Models\RiderProfile;
+use App\Models\ServiceZone;
 use App\Models\Shipment;
 use App\Models\User;
 use App\Services\Notifications\NotificationService;
@@ -104,14 +105,16 @@ class DispatchService
     public function suggestRiders(Shipment $shipment, string $leg = 'delivery'): Collection
     {
         $zoneId = $leg === 'pickup' ? $shipment->origin_zone_id : $shipment->destination_zone_id;
+        // A rider covering the whole country counts as "in zone" for its states too.
+        $zoneIds = ($zoneId ? ServiceZone::find($zoneId)?->lineage()->pluck('id')->all() : null) ?? [];
 
         return RiderProfile::with('user')
             ->where('is_active', true)
             ->whereHas('user', fn ($q) => $q->where('status', 'active')->where('role', 'rider'))
             ->get()
-            ->map(function (RiderProfile $p) use ($zoneId) {
+            ->map(function (RiderProfile $p) {
                 $p->open_jobs = $p->activeAssignmentCount();
-                $p->in_zone = $p->service_zone_id === $zoneId;
+                $p->in_zone = in_array($p->service_zone_id, $zoneIds, true);
 
                 return $p;
             })

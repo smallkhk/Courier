@@ -81,8 +81,10 @@ class PricingService
         if ($pickupRequested && ! $origin->pickup_enabled) {
             $errors['origin_zone_id'] = "Pickup is not available in {$origin->name}. You can drop off at a branch instead.";
         }
+        // A state/city zone is served when it, or its country-wide or worldwide zone, is on the service.
         $zoneIds = $service->zones()->pluck('service_zones.id')->all();
-        if (! in_array($origin->id, $zoneIds) || ! in_array($destination->id, $zoneIds)) {
+        $covers = fn (ServiceZone $z) => $z->lineage()->pluck('id')->intersect($zoneIds)->isNotEmpty();
+        if (! $covers($origin) || ! $covers($destination)) {
             $errors['service_id'] = "{$service->name} is not available on this route.";
         }
         if ($errors) {
@@ -90,26 +92,34 @@ class PricingService
         }
     }
 
-    /** Most specific active rule wins: business > exact route > origin-only/destination-only > any. */
+    /**
+     * Most specific active rule wins: business > exact zone > the zone's country-wide zone >
+     * worldwide zone > "any zone". So a state zone uses its country's prices until it is
+     * given its own.
+     */
     public function findRule(Service $service, ServiceZone $origin, ServiceZone $destination, ?Business $business = null, ?Carbon $on = null): ?PricingRule
     {
         $date = ($on ?? now())->toDateString();
+        // zone id => specificity (exact 10, country 6, worldwide 3)
+        $rank = fn (ServiceZone $z) => $z->lineage()->values()->mapWithKeys(fn (ServiceZone $l, int $i) => [$l->id => [10, 6, 3][min($i, 2)]])->all();
+        $o = $rank($origin);
+        $d = $rank($destination);
 
         $candidates = PricingRule::query()
             ->where('service_id', $service->id)
             ->where('active', true)
             ->where(fn ($q) => $q->whereNull('effective_from')->orWhere('effective_from', '<=', $date))
             ->where(fn ($q) => $q->whereNull('effective_to')->orWhere('effective_to', '>=', $date))
-            ->where(fn ($q) => $q->whereNull('origin_zone_id')->orWhere('origin_zone_id', $origin->id))
-            ->where(fn ($q) => $q->whereNull('destination_zone_id')->orWhere('destination_zone_id', $destination->id))
+            ->where(fn ($q) => $q->whereNull('origin_zone_id')->orWhereIn('origin_zone_id', array_keys($o)))
+            ->where(fn ($q) => $q->whereNull('destination_zone_id')->orWhereIn('destination_zone_id', array_keys($d)))
             ->where(fn ($q) => $business
                 ? $q->whereNull('business_id')->orWhere('business_id', $business->id)
                 : $q->whereNull('business_id'))
             ->get();
 
         return $candidates->sortByDesc(fn (PricingRule $r) => ($r->business_id ? 100 : 0)
-            + ($r->origin_zone_id ? 10 : 0)
-            + ($r->destination_zone_id ? 10 : 0)
+            + ($r->origin_zone_id ? $o[$r->origin_zone_id] : 0)
+            + ($r->destination_zone_id ? $d[$r->destination_zone_id] : 0)
             + ($r->effective_from ? 1 : 0))
             ->first();
     }
