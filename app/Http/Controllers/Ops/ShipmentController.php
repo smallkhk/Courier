@@ -144,6 +144,14 @@ class ShipmentController extends Controller
         return redirect()->route('ops.shipments.show', $shipment)->with('success', 'Sender and recipient swapped. The price was not changed.');
     }
 
+    public function reset(Request $request, Shipment $shipment, ShipmentEditor $editor)
+    {
+        $data = $request->validate(['reason' => 'required|string|max:300']);
+        $editor->resetToBooked($shipment, $request->user(), $data['reason']);
+
+        return redirect()->route('ops.shipments.show', $shipment)->with('success', 'Shipment reset to Booked. Courier jobs were ended; assign a courier again when ready.');
+    }
+
     /** Staff-recorded proof (e.g. customer collected at a branch). */
     public function proof(Request $request, Shipment $shipment, DeliveryService $delivery)
     {

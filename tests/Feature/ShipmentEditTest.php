@@ -92,4 +92,25 @@ class ShipmentEditTest extends TestCase
         $s->forceFill(['status' => 'delivered'])->save();
         $this->actingAs($this->user('admin'))->get(route('ops.shipments.edit', $s))->assertStatus(422);
     }
+
+    public function test_admin_resets_an_in_progress_shipment_to_booked(): void
+    {
+        $s = $this->booked();
+        $s->forceFill(['status' => 'booked'])->save();
+        $admin = $this->user('admin');
+        $rider = $this->user('rider');
+        $this->actingAs($admin)->post(route('ops.shipments.assign', $s), ['rider_id' => $rider->id, 'leg' => 'pickup']);
+        $this->actingAs($admin)->post(route('ops.shipments.status', $s), ['status' => 'picked_up']);
+        $this->assertSame('picked_up', $s->fresh()->status->value);
+
+        $this->actingAs($this->user('dispatcher'))->post(route('ops.shipments.reset', $s), ['reason' => 'x'])->assertForbidden();
+        $this->actingAs($admin)->post(route('ops.shipments.reset', $s), ['reason' => 'Updated by mistake'])->assertSessionHas('success');
+
+        $s->refresh();
+        $this->assertSame('booked', $s->status->value);
+        $this->assertNull($s->activeAssignment);
+        $this->get(route('track.show', $s->tracking_number))->assertOk()->assertDontSee('Parcel collected from the sender');
+        $this->actingAs($admin)->get(route('ops.shipments.show', $s))->assertOk()->assertSee('Reset to Booked by');
+        $this->assertDatabaseHas('audit_logs', ['action' => 'shipment.reset_to_booked']);
+    }
 }

@@ -1,5 +1,11 @@
 @props(['events', 'internal' => false])
 {{-- Chronological (newest first) event list. Internal notes render only when $internal is true. --}}
+@php
+    // Customers see the journey from the latest reset onward; staff (internal) see everything.
+    if (! $internal && ($reset = $events->where('source', 'reset')->sortByDesc(fn ($e) => [$e->occurred_at, $e->id])->first())) {
+        $events = $events->filter(fn ($e) => [$e->occurred_at, $e->id] >= [$reset->occurred_at, $reset->id]);
+    }
+@endphp
 <ol class="relative space-y-6 border-l-2 border-ink-200 pl-6" aria-label="Shipment timeline">
     @forelse($events->sortByDesc(fn ($e) => [$e->occurred_at, $e->id]) as $e)
         <li class="timeline-item relative" style="--i: {{ $loop->index }}">

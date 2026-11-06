@@ -2,8 +2,10 @@
 
 namespace App\Services;
 
+use App\Enums\ShipmentStatus;
 use App\Models\ServiceZone;
 use App\Models\Shipment;
+use App\Models\ShipmentEvent;
 use App\Models\User;
 use App\Support\Audit;
 use App\Support\Countries;
@@ -173,5 +175,28 @@ class ShipmentEditor
     private function line(array $d, string $side): string
     {
         return (new Shipment)->forceFill(array_intersect_key($d, array_flip(array_map(fn ($f) => "{$side}_{$f}", self::ADDRESS))))->addressLine($side);
+    }
+
+    /**
+     * Admin only: put a paid shipment back to "Booked" as if no work had started. Open courier
+     * jobs are ended and the customer's tracking restarts from here; the earlier history stays
+     * in the staff timeline and the audit log (events are never deleted).
+     */
+    public function resetToBooked(Shipment $s, User $by, string $reason): void
+    {
+        abort_unless($by->isRole('admin'), 403);
+        abort_if($s->status->isTerminal() || in_array($s->status->value, ['draft', 'pending_payment', 'booked'], true), 422,
+            'Only shipments that are in progress can be reset to Booked.');
+        DB::transaction(function () use ($s, $by, $reason) {
+            $from = $s->status->value;
+            $s->assignments()->whereIn('status', ['assigned', 'accepted'])->update(['status' => 'reassigned', 'ended_at' => now()]);
+            $s->forceFill(['status' => ShipmentStatus::Booked, 'status_changed_at' => now(), 'delivered_at' => null])->save();
+            ShipmentEvent::create([
+                'shipment_id' => $s->id, 'status' => 'booked', 'previous_status' => $from, 'occurred_at' => now(),
+                'public_description' => 'Shipment booked.', 'internal_note' => 'Reset to Booked by '.$by->name.'. Reason: '.$reason,
+                'actor_id' => $by->id, 'source' => 'reset',
+            ]);
+            Audit::log('shipment.reset_to_booked', $s, ['from' => $from, 'reason' => $reason]);
+        });
     }
 }

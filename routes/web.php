@@ -214,6 +214,7 @@ Route::middleware(['auth', 'role:dispatcher,admin'])->prefix('ops')->name('ops.'
     Route::get('/shipments/{shipment}/edit', [Ops\ShipmentController::class, 'edit'])->name('shipments.edit');
     Route::put('/shipments/{shipment}', [Ops\ShipmentController::class, 'update'])->name('shipments.update');
     Route::post('/shipments/{shipment}/swap', [Ops\ShipmentController::class, 'swap'])->name('shipments.swap');
+    Route::post('/shipments/{shipment}/reset', [Ops\ShipmentController::class, 'reset'])->middleware('role:admin')->name('shipments.reset');
     Route::post('/shipments/{shipment}/proof', [Ops\ShipmentController::class, 'proof'])->name('shipments.proof');
     Route::post('/shipments/{shipment}/mark-paid', [Ops\ShipmentController::class, 'confirmOffline'])->middleware('role:admin')->name('shipments.confirm-offline');
     Route::get('/dispatch', [Ops\DispatchController::class, 'index'])->name('dispatch');

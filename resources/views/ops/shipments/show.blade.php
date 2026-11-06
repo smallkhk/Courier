@@ -75,6 +75,19 @@
             @endif
         </div>
 
+        @if(auth()->user()->isRole('admin') && ! $s->status->isTerminal() && ! in_array($s->status->value, ['draft', 'pending_payment', 'booked'], true))
+        <form method="post" action="{{ route('ops.shipments.reset', $s) }}" class="card card-body space-y-3 border-danger-200" x-data="{ open: false }">
+            @csrf
+            <h2 class="text-base">Reset to Booked</h2>
+            <p class="text-sm text-ink-600">Start this shipment over: ends courier jobs and restarts the customer's tracking from "Booked". Staff history is kept.</p>
+            <button type="button" class="btn btn-secondary w-full" x-show="!open" @click="open = true">Reset to Booked…</button>
+            <div x-show="open" x-cloak class="space-y-3">
+                <x-field name="reason" label="Reason" required placeholder="e.g. Updated by mistake" />
+                <button class="btn btn-danger w-full" type="submit">Confirm reset</button>
+            </div>
+        </form>
+        @endif
+
         @if($next->isNotEmpty())
         <form method="post" action="{{ route('ops.shipments.status', $s) }}" class="card card-body space-y-3">
             @csrf
