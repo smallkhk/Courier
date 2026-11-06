@@ -4,6 +4,7 @@
 @php $tz = \App\Support\Settings::get('timezone'); $active = $s->assignments->first(fn($a) => $a->isOpen()); @endphp
 <x-page-header :title="$s->tracking_number" :subtitle="$s->service->name.' · created '.$s->created_at->timezone($tz)->format('j M Y H:i')" :back="route('ops.shipments.index')">
     <x-status-badge :status="$s->status" class="self-center text-sm" />
+    @if(\App\Services\ShipmentEditor::editable($s))<a href="{{ route('ops.shipments.edit', $s) }}" class="btn btn-primary btn-sm"><x-icon name="file" class="size-4" />Edit details</a>@endif
     <a href="{{ route('track.show', $s->tracking_number) }}" class="btn btn-secondary btn-sm" target="_blank">Public view</a>
 </x-page-header>
 <div class="grid gap-6 xl:grid-cols-[1fr_380px]">

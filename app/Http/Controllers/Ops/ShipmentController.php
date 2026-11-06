@@ -10,10 +10,12 @@ use App\Models\Shipment;
 use App\Models\User;
 use App\Services\DeliveryService;
 use App\Services\DispatchService;
+use App\Services\ShipmentEditor;
 use App\Services\ShipmentWorkflow;
 use App\Support\Audit;
 use App\Support\Csv;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 class ShipmentController extends Controller
@@ -117,6 +119,29 @@ class ShipmentController extends Controller
         Audit::log('shipment.note_added', $shipment);
 
         return back()->with('success', 'Note added.');
+    }
+
+    public function edit(Shipment $shipment)
+    {
+        abort_unless(ShipmentEditor::editable($shipment), 422, 'Delivered, returned or cancelled shipments can no longer be edited.');
+
+        return view('ops.shipments.edit', ['s' => $shipment->load('service')]);
+    }
+
+    public function update(Request $request, Shipment $shipment, ShipmentEditor $editor)
+    {
+        $changed = $editor->update($shipment, $request->validate(ShipmentEditor::rules()), $request->user());
+
+        return redirect()->route('ops.shipments.show', $shipment)->with($changed ? 'success' : 'status',
+            $changed ? 'Details updated ('.count($changed).' '.Str::plural('field', count($changed)).'). The price was not changed.' : 'Nothing was changed.');
+    }
+
+    public function swap(Request $request, Shipment $shipment, ShipmentEditor $editor)
+    {
+        $data = $request->validate(['reason' => 'required|string|max:300']);
+        $editor->swap($shipment, $request->user(), $data['reason']);
+
+        return redirect()->route('ops.shipments.show', $shipment)->with('success', 'Sender and recipient swapped. The price was not changed.');
     }
 
     /** Staff-recorded proof (e.g. customer collected at a branch). */
