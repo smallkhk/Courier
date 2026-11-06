@@ -12,7 +12,7 @@
     </form>
     @isset($notFound)
         <x-alert type="warning" class="mt-6" title="We couldn't find that tracking number">
-            Check for typos — tracking numbers look like <span class="font-mono">CX7K2M9QH4TRP8</span>. New bookings appear immediately after they're created. If it still doesn't work, <a href="{{ route('support.contact') }}">contact support</a>.
+            Check for typos — tracking numbers look like <span class="font-mono">{{ \App\Support\Settings::get('tracking_prefix', 'ES') }}7K2M9QH4TRP8</span>. New bookings appear immediately after they're created. If it still doesn't work, <a href="{{ route('support.contact') }}">contact support</a>.
         </x-alert>
     @endisset
 </div>

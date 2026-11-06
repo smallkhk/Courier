@@ -14,7 +14,7 @@ final class TrackingNumber
 
     public static function generate(?string $prefix = null): string
     {
-        $prefix = strtoupper(preg_replace('/[^A-Za-z]/', '', $prefix ?? (string) Settings::get('tracking_prefix', 'CX')));
+        $prefix = strtoupper(preg_replace('/[^A-Za-z]/', '', $prefix ?? (string) Settings::get('tracking_prefix', 'ES')));
         $bytes = random_bytes(8);
         $bits = '';
         foreach (str_split($bytes) as $b) {

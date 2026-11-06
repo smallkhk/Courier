@@ -59,7 +59,7 @@
                     @csrf
                     <label for="hero-tracking" class="label">Tracking number</label>
                     <input id="hero-tracking" name="tracking_number" required maxlength="40" autocomplete="off" spellcheck="false"
-                           class="input font-mono text-lg tracking-wider uppercase placeholder:normal-case placeholder:tracking-normal" placeholder="e.g. CX7K2M9QH4TRP8">
+                           class="input font-mono text-lg tracking-wider uppercase placeholder:normal-case placeholder:tracking-normal" placeholder="e.g. {{ \App\Support\Settings::get('tracking_prefix', 'ES') }}7K2M9QH4TRP8">
                     <button type="submit" class="btn btn-primary btn-lg w-full">Track shipment</button>
                 </form>
             </div>

@@ -82,7 +82,7 @@ return [
         'support_phone' => env('SUPPORT_PHONE', ''),
         'office_address' => '',
         'whatsapp_number' => env('WHATSAPP_NUMBER', ''),
-        'tracking_prefix' => 'CX',
+        'tracking_prefix' => 'ES',
         'default_currency' => 'USD',
         'currencies' => ['USD'],
         'timezone' => 'America/New_York',
