@@ -1,13 +1,11 @@
-# Deploying to Namecheap cPanel (Stellar shared hosting)
+# Launching ExpressShipping on Namecheap cPanel
 
-This guide takes the site from this repository to a live HTTPS domain on a
-Namecheap **Stellar / Stellar Plus / Stellar Business** plan. Everything below is
-done from cPanel and its built-in **Terminal** (Advanced → Terminal). If your plan
-has no Terminal, use SSH (Namecheap: *Advanced → SSH Access*), or run the
-`composer install` step on your computer and upload the `vendor/` folder.
+This guide takes the site live on a Namecheap **Stellar / Stellar Plus / Stellar
+Business** plan using only cPanel in your browser. You do **not** need SSH,
+Composer or Node.js: the release package already contains everything.
 
-> Nothing here needs Node.js on the server: the compiled CSS/JS lives in
-> `public/build/` and is committed to the repository.
+After launch, new versions install from **Admin → Software updates** with one
+button (section 15).
 
 ---
 
@@ -16,7 +14,7 @@ has no Terminal, use SSH (Namecheap: *Advanced → SSH Access*), or run the
 | Item | Where |
 |---|---|
 | PHP **8.2 or newer** (8.3 recommended) | cPanel → *Select PHP Version* |
-| PHP extensions: `pdo_mysql`, `mbstring`, `openssl`, `fileinfo`, `tokenizer`, `xml`, `ctype`, `curl`, `intl`, `gd` | same page → *Extensions* tab |
+| PHP extensions: `pdo_mysql`, `mbstring`, `openssl`, `fileinfo`, `tokenizer`, `xml`, `ctype`, `curl`, `intl`, `gd`, `zip` | same page → *Extensions* tab |
 | MySQL / MariaDB database + user | cPanel → *MySQL Databases* |
 | An email account to send from (e.g. `no-reply@yourdomain.com`) | cPanel → *Email Accounts* |
 | SSL certificate | cPanel → *SSL/TLS Status* → *Run AutoSSL* (free) |
@@ -24,100 +22,68 @@ has no Terminal, use SSH (Namecheap: *Advanced → SSH Access*), or run the
 | Google Maps Platform API key (address search) | console.cloud.google.com |
 | Optional: Twilio account + A2P 10DLC registration for US SMS | console.twilio.com |
 
----
+## 1. Download the release package
 
-## 1. Create the database
+From the repository's **Releases** page, download `expressshipping-X.Y.Z.zip`
+(about 27 MB). It contains the production code, its PHP libraries and the
+compiled design. It contains **no demo data, no tests and no `.env`**.
+
+## 2. Create the database
 
 1. cPanel → **MySQL Databases**.
-2. *Create New Database*: e.g. `courier` → becomes `cpaneluser_courier`.
-3. *Add New User*: e.g. `courier` with a long generated password → `cpaneluser_courier`.
-4. *Add User To Database* → tick **ALL PRIVILEGES** is simplest; for least privilege
-   grant: SELECT, INSERT, UPDATE, DELETE, CREATE, ALTER, INDEX, DROP, REFERENCES,
-   LOCK TABLES (DROP/ALTER/CREATE are needed only while running migrations).
+2. *Create New Database*: e.g. `shipping` → becomes `cpaneluser_shipping`.
+3. *Add New User*: e.g. `shipping` with a long generated password.
+4. *Add User To Database* → **ALL PRIVILEGES**.
 
-## 2. Put the code on the server (outside `public_html`)
+## 3. Upload and extract
 
-The application must live **outside** the web root so `.env`, `storage/` and
-source files are never downloadable. Only the `public/` folder is served.
+Pick the folder your domain serves (its **document root**, shown in cPanel →
+*Domains*). For the main domain this is `public_html`; for an addon domain or
+subdomain it is the folder you chose, e.g. `expressshipping.co`.
 
-**Option A — cPanel Git™ Version Control (recommended):**
+1. cPanel → **File Manager** → open that folder (empty it first if it only holds
+   the default cPanel placeholder files).
+2. *Upload* the ZIP, then right-click it → *Extract*. Delete the ZIP afterwards.
 
-1. cPanel → **Git Version Control** → *Create*.
-2. Clone URL: your repository URL (for a private GitHub repo, add a deploy key:
-   cPanel → *SSH Access* → generate key → add the public key to GitHub →
-   *Settings → Deploy keys*).
-3. Repository Path: `/home/cpaneluser/courier` (NOT inside `public_html`).
+The included `.htaccess` sends every request into the `public/` folder, so
+`.env`, `storage/` and the code itself can never be downloaded (verified: they
+return 404). *Even better, if cPanel → Domains lets you edit the domain's
+document root, point it at the `public/` sub-folder; the result is the same.*
 
-**Option B — upload a zip:** download the repo as a zip, upload with
-*File Manager* to `/home/cpaneluser/`, and extract to `/home/cpaneluser/courier`.
+## 4. Create `.env`
 
-## 3. Install PHP dependencies
+In File Manager, copy `.env.example` to `.env` (enable *Show Hidden Files* in
+Settings) and edit it:
 
-cPanel → **Terminal**:
+| Setting | Value |
+|---|---|
+| `APP_URL` | `https://yourdomain.com` |
+| `APP_KEY` | a random key, `base64:` followed by 32 random bytes in base64 — use the prepared `.env` you were given, or any Laravel key generator |
+| `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD` | from step 2 |
+| `INSTALL_TOKEN` | a long random code (at least 20 characters) — you type it once in the installer |
+| `MAIL_*`, `SUPPORT_EMAIL` | your cPanel email account (section 8) |
+| Stripe, Google Maps, Twilio | sections 7, 7b and 9 — can be added after launch |
 
-```bash
-cd ~/courier
-composer install --no-dev --optimize-autoloader
-```
+Keep `APP_ENV=production` and `APP_DEBUG=false`.
 
-If `composer` isn't found, use `php ~/composer.phar …` after downloading it from
-getcomposer.org, or run the command locally and upload `vendor/`.
+## 5. Choose PHP and run the installer
 
-## 4. Configure `.env`
+1. cPanel → **Select PHP Version** → **8.3**, and tick the extensions from step 0.
+2. Make sure SSL is active (cPanel → *SSL/TLS Status* → *Run AutoSSL*).
+3. Visit `https://yourdomain.com` — you are sent to **/install**. It checks the
+   server, then asks for the setup code, your business name, support email and
+   your administrator account.
+4. Press **Install ExpressShipping**. It creates the tables, the message templates
+   and draft policy pages, and your admin account. **No demo data is created.**
 
-```bash
-cd ~/courier
-cp .env.example .env
-php artisan key:generate
-nano .env          # or edit with cPanel File Manager
-```
+The installer locks itself as soon as an administrator exists. You can now remove
+`INSTALL_TOKEN` from `.env`.
 
-Fill in at least: `APP_NAME`, `APP_URL=https://yourdomain.com`, `APP_ENV=production`,
-`APP_DEBUG=false`, the `DB_*` values from step 1, the `MAIL_*` values (step 8),
-the `PAYSTACK_*` keys (step 7). Then protect the file:
+## 6. Finish the launch checklist
 
-```bash
-chmod 600 .env
-```
-
-Check it:
-
-```bash
-php artisan courier:check-config
-```
-
-## 5. Create tables, seed essentials, create your admin
-
-```bash
-php artisan migrate --force
-php artisan db:seed --force              # message templates + DRAFT policy pages (safe to re-run)
-php artisan courier:create-admin you@yourdomain.com "Your Name"
-php artisan config:cache && php artisan route:cache && php artisan view:cache
-```
-
-> **Do not** run `DemoSeeder` in production — it refuses to run anyway.
-
-## 6. Point the domain at `public/`
-
-The web server must serve `~/courier/public`.
-
-**Main domain** (`public_html` is fixed): replace `public_html` with a symlink.
-
-```bash
-mv ~/public_html ~/public_html_old     # keep a backup of whatever was there
-ln -s ~/courier/public ~/public_html
-```
-
-**Addon domain or subdomain:** cPanel → *Domains* → *Manage* → set the
-**Document Root** to `courier/public`.
-
-Make storage writable (usually already correct on cPanel):
-
-```bash
-chmod -R 775 ~/courier/storage ~/courier/bootstrap/cache
-```
-
-Visit `https://yourdomain.com/health` — you should see `"status":"ok"`.
+Sign in and open **Admin → System settings**. The *Launch checklist* at the top
+shows what's left: delivery areas, services, prices, policies, Stripe, email, the
+cron job and Google address search, each with a link to where it's done.
 
 ## 7. Payments — Stripe (recommended for US & international)
 
@@ -129,7 +95,7 @@ Visit `https://yourdomain.com/health` — you should see `"status":"ok"`.
    `checkout.session.completed`, `checkout.session.async_payment_succeeded`,
    `checkout.session.async_payment_failed`, `checkout.session.expired`. Copy the **Signing secret**
    into `STRIPE_WEBHOOK_SECRET`.
-4. Set `PAYMENT_PROVIDER=stripe`, run `php artisan config:cache`, and place a test booking with
+4. Set `PAYMENT_PROVIDER=stripe` and place a test booking with
    card `4242 4242 4242 4242`. Then switch to live keys and a live webhook endpoint.
 
 How it's secured: Checkout Sessions are created server-side with an idempotency key; the browser
@@ -196,13 +162,15 @@ delivery-day messages). For Africa you can use `SMS_DRIVER=termii` instead.
 ## 10. The cron job (required)
 
 Notifications, payment reconciliation, retries and data retention run from
-Laravel's scheduler. cPanel → **Cron Jobs** → *Add New Cron Job*:
+Laravel's scheduler. It also finishes one-click updates if your browser closed
+mid-update. cPanel → **Cron Jobs** → *Add New Cron Job* (use the folder you
+extracted into in step 3):
 
 - Common settings: **Once Per Minute** (`* * * * *`)
 - Command:
 
 ```
-cd /home/cpaneluser/courier && /usr/local/bin/php artisan schedule:run >> /dev/null 2>&1
+cd /home/cpaneluser/public_html && /usr/local/bin/php artisan schedule:run >> /dev/null 2>&1
 ```
 
 (Check the PHP path in cPanel → *Select PHP Version*; on Namecheap it is typically
@@ -219,6 +187,8 @@ What it runs:
 | `payments:reconcile` — verify/expire abandoned checkouts | every 10 minutes |
 | `courier:prune` — delete rider location history past retention, old quotes | daily 02:30 |
 | `queue:work --stop-when-empty` | every minute |
+| `courier:finish-update` — completes an update left half-way | every minute |
+| check GitHub for a newer release (shows *Update available* on the admin dashboard) | hourly |
 
 ## 11. Maps
 
@@ -239,7 +209,7 @@ and city lists you configure.
 ## 12. Private file storage
 
 Proof-of-delivery photos and signatures are stored in
-`~/courier/storage/app/private`, which is outside the web root, under random names.
+`storage/app/private` (never web-accessible: every request is served from `public/`), under random names.
 They are streamed only through authorised routes. Do **not** run
 `php artisan storage:link` for these files. Include `storage/app/private` in backups.
 
@@ -264,41 +234,53 @@ and run `php artisan migrate:status`.
 
 ## 14. Logs & monitoring
 
-- Application logs: `~/courier/storage/logs/laravel-YYYY-MM-DD.log`
+- Application logs: `storage/logs/laravel-YYYY-MM-DD.log` in the site folder
   (`LOG_CHANNEL=daily`). Configuration errors are logged as `CRITICAL CONFIG:` at startup.
 - Uptime: point a free monitor (UptimeRobot, Better Stack…) at `https://yourdomain.com/health`
   (HTTP 200 = healthy, 503 = database down).
 - Notification delivery: **Operations → Notifications log**.
 - Optional error tracking: `composer require sentry/sentry-laravel` and set `SENTRY_LARAVEL_DSN`.
 
-## 15. Updating the site
+## 15. Updating the site — one click
 
-```bash
-cd ~/courier
-php artisan down --retry=60
-git pull                                  # or cPanel Git → Update from Remote
-composer install --no-dev --optimize-autoloader
-php artisan migrate --force
-php artisan config:cache && php artisan route:cache && php artisan view:cache
-php artisan up
-```
+**Admin → Software updates** shows your version and the newest release. When an
+update is available (the admin dashboard shows a banner too), read the notes,
+enter your password and press **Install update**. What happens:
 
-Front-end changes: run `npm ci && npm run build` **on your computer** and commit
-`public/build/`.
+1. The package is downloaded from GitHub and its **SHA-256 checksum verified**;
+   a package that fails the check, or contains unsafe file paths, is rejected
+   before anything changes.
+2. Every file that will change is **backed up**, and the database is dumped with
+   `mysqldump` when the server allows it (shown under *Server checks*).
+3. The site shows a short maintenance page while the new files are copied in.
+   `.env`, `storage/` (uploads, logs) and your data are never touched.
+4. A fresh request runs the database migrations, clears caches and brings the
+   site back. If any step fails, the previous files are restored automatically.
 
-### Rollback
+If the browser is closed mid-update, the cron job finishes it within two
+minutes. **Restore a previous version** on the same page puts back the program
+files from any of the last three backups (the database is not changed).
 
-1. `php artisan down`
-2. `git checkout <previous-tag-or-commit>` then `composer install --no-dev`
-3. If the release included migrations: `php artisan migrate:rollback --step=N` —
-   or restore the pre-deploy database dump if data was transformed.
-4. `php artisan config:cache && php artisan up`
+Private repository? Set `UPDATE_GITHUB_TOKEN` in `.env` to a fine-grained token
+with read-only *Contents* access.
 
-Always take a database dump before running migrations in production.
+### How releases are published (developers)
+
+1. Make the change, bump `VERSION` (e.g. `1.0.1`) and add `docs/releases/1.0.1.md`.
+2. Push a tag `v1.0.1`. The **Release** workflow runs the full test suite, builds
+   `expressshipping-1.0.1.zip` with `scripts/build-release.sh` and publishes it
+   with its `.sha256` file. A release that fails its tests is never published.
+
+### Manual recovery
+
+If the site is ever stuck on the maintenance page, delete
+`storage/framework/down` in File Manager. Backups live in
+`storage/app/updates/backups/<from>-to-<to>-<date>/` (`files/` holds the
+replaced files, `database.sql.gz` the database dump).
 
 ## 16. Go-live checklist
 
-- [ ] `php artisan courier:check-config` reports no errors
+- [ ] Admin → System settings: launch checklist complete, no red configuration warnings
 - [ ] `APP_ENV=production`, `APP_DEBUG=false`, `APP_URL` uses https
 - [ ] AutoSSL certificate active; http redirects to https (cPanel → *Domains* → Force HTTPS)
 - [ ] `/health` returns ok and scheduler ok
@@ -306,7 +288,7 @@ Always take a database dump before running migrations in production.
 - [ ] Google Maps key restricted to your domain and APIs; budget alert set
 - [ ] Test email received (register a test account); SPF/DKIM valid
 - [ ] SMS tested (if enabled); Twilio A2P 10DLC / toll-free verification approved
-- [ ] Coverage zones (countries/states/ZIP prefixes), services, pricing rules, branches entered (Admin); DEMO data absent
+- [ ] Coverage zones (countries/states/ZIP prefixes), services, pricing rules, branches entered (Admin); no demo data (the installer never creates any)
 - [ ] Settings reviewed: home country, currency, timezone, units (Admin → System settings)
 - [ ] Terms, privacy and delivery policies replaced with lawyer-reviewed text (Admin → Website content)
 - [ ] Settings reviewed: currency, guest booking, COD, proof rules, retention (Admin → System settings)

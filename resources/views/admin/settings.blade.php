@@ -3,6 +3,25 @@
 @section('content')
 <x-page-header title="System settings" />
 @foreach($problems as [$level, $msg])<x-alert :type="$level === 'error' ? 'danger' : 'warning'" class="mb-2">{{ $msg }}</x-alert>@endforeach
+@php $doneCount = collect($checklist)->where('done', true)->count(); @endphp
+<section class="card mb-6" data-reveal aria-labelledby="launch-h">
+    <div class="card-header">
+        <h2 id="launch-h" class="text-base">Launch checklist</h2>
+        <span class="text-sm font-semibold {{ $doneCount === count($checklist) ? 'text-success-700' : 'text-ink-600' }}">{{ $doneCount }} of {{ count($checklist) }} done</span>
+    </div>
+    <div class="px-4 pt-4 sm:px-6"><div class="h-2 overflow-hidden rounded-full bg-ink-100"><span class="progress-fill block h-full rounded-full bg-gradient-to-r from-brand-500 to-success-600" style="width: {{ round($doneCount / count($checklist) * 100) }}%"></span></div></div>
+    <ul class="grid gap-x-6 p-2 sm:grid-cols-2 sm:p-4">
+        @foreach($checklist as $item)
+            <li class="flex gap-3 rounded-lg p-2">
+                <x-icon :name="$item['done'] ? 'check-circle' : 'clock'" class="mt-0.5 size-5 shrink-0 {{ $item['done'] ? 'text-success-600' : 'text-accent-600' }}" />
+                <div class="text-sm">
+                    <p class="font-medium {{ $item['done'] ? 'text-ink-500 line-through' : 'text-ink-900' }}">@if($item['url'] && ! $item['done'])<a href="{{ $item['url'] }}">{{ $item['title'] }}</a>@else{{ $item['title'] }}@endif</p>
+                    @unless($item['done'])<p class="text-xs text-ink-600">{{ $item['help'] }}</p>@endunless
+                </div>
+            </li>
+        @endforeach
+    </ul>
+</section>
 <div class="grid gap-6 lg:grid-cols-[1fr_360px]">
     <form method="post" action="{{ route('admin.settings.update') }}" class="card card-body grid gap-4 sm:grid-cols-2">
         @csrf @method('PUT')

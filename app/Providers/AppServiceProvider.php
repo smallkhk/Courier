@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Support\ConfigCheck;
+use App\Support\Installer;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\Paginator;
@@ -17,6 +18,12 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        // Before the first install there are no database tables for sessions or cache yet,
+        // so the installer runs on file-based sessions and cache.
+        if (! $this->app->runningInConsole() && $this->app['request']->is('install') && ! Installer::installed()) {
+            config(['session.driver' => 'file', 'cache.default' => 'file']);
+        }
+
         if ($this->app->environment('production')) {
             URL::forceScheme('https');
             // Make configuration errors loud at startup (visible in storage/logs).

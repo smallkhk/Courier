@@ -1,0 +1,55 @@
+name: Release
+
+# Push a tag like v1.2.3 (matching the VERSION file) to publish an update. The site's
+# Admin → Software updates page picks it up and installs it with one click.
+on:
+  push:
+    tags: ['v*.*.*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_DATABASE: courier_test
+          MYSQL_USER: courier
+          MYSQL_PASSWORD: courier
+          MYSQL_ROOT_PASSWORD: root
+        ports: ['3306:3306']
+        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=5
+    env:
+      DB_HOST: 127.0.0.1
+      DB_USERNAME: courier
+      DB_PASSWORD: courier
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: pdo_mysql, mbstring, intl, gd, fileinfo, zip
+          coverage: none
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Check the tag matches VERSION
+        run: test "${GITHUB_REF_NAME#v}" = "$(tr -d '[:space:]' < VERSION)"
+      # Never publish a release that fails its tests.
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - run: cp .env.example .env && php artisan key:generate
+      - run: php artisan test
+      - run: npm ci && npm run build
+      - run: scripts/build-release.sh "${GITHUB_REF_NAME#v}"
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          V="${GITHUB_REF_NAME#v}"
+          # --latest=false: other projects publish releases in this repository too.
+          gh release create "$GITHUB_REF_NAME" "dist/expressshipping-$V.zip" "dist/expressshipping-$V.zip.sha256" \
+            --title "ExpressShipping $V" --notes-file "docs/releases/$V.md" --verify-tag --latest=false

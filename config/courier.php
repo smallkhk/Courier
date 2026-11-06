@@ -8,6 +8,20 @@
 */
 
 return [
+    // Installed release, written into the VERSION file by each release package.
+    'version' => trim((string) @file_get_contents(dirname(__DIR__).'/VERSION')) ?: 'dev',
+
+    // One-click updates from GitHub releases (Admin → Software updates).
+    'updates' => [
+        'repository' => env('UPDATE_REPOSITORY', 'smallkhk/Courier'),
+        // Only needed if the repository is private: a fine-grained token with read-only "Contents".
+        'token' => env('UPDATE_GITHUB_TOKEN'),
+        'asset_prefix' => 'expressshipping-',
+    ],
+
+    // First-launch web installer (/install). Leave empty to disable it entirely.
+    'install_token' => env('INSTALL_TOKEN'),
+
     'payments' => [
         // stripe | paystack | sandbox   ("sandbox" is refused when APP_ENV=production)
         'provider' => env('PAYMENT_PROVIDER', 'sandbox'),
@@ -63,7 +77,7 @@ return [
     ],
 
     'defaults' => [
-        'business_name' => env('APP_NAME', 'Courier'),
+        'business_name' => env('APP_NAME', 'ExpressShipping'),
         'support_email' => env('SUPPORT_EMAIL', 'support@example.com'),
         'support_phone' => env('SUPPORT_PHONE', ''),
         'office_address' => '',

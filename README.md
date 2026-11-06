@@ -1,4 +1,4 @@
-# Courier — international parcel booking, tracking & delivery management
+# ExpressShipping — international parcel booking, tracking & delivery management
 
 A complete, database-backed courier website for **customers, business clients,
 couriers, dispatchers and administrators** — built for a **US-based business shipping
@@ -86,6 +86,16 @@ flag, pickup/delivery availability), branches (hours, holiday closures,
 coordinates), message templates, website content, FAQs, users & roles (suspend
 signs out everywhere), status-workflow reference, audit-log search, system
 settings with integration status.
+
+## Launch & updates
+
+- **Launch:** download `expressshipping-X.Y.Z.zip` from Releases, extract it into the
+  domain's folder in cPanel, fill in `.env` and open `/install`. No SSH, Composer or
+  Node needed. Full guide: [DEPLOYMENT.md](DEPLOYMENT.md).
+- **Updates:** Admin → *Software updates* → **Install update**. Checksum-verified,
+  backed up, migrated and rolled back automatically on failure.
+- **Publishing a release:** bump `VERSION`, add `docs/releases/<version>.md`, push tag
+  `v<version>`; the Release workflow tests, packages (`scripts/build-release.sh`) and publishes.
 
 ## Local development
 

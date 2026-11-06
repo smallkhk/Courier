@@ -5,6 +5,12 @@
     <a href="{{ route('ops.dispatch') }}" class="btn btn-accent btn-lg btn-shine"><x-icon name="route" class="size-4" />Dispatch board</a>
     <a href="{{ route('ops.map') }}" class="btn btn-on-dark btn-lg"><x-icon name="map" class="size-4" />Rider map</a>
 </x-dash-hero>
+@if(auth()->user()->isRole('admin') && ($update = app(\App\Services\Updates\UpdateService::class)->availableFromCache()))
+    <a href="{{ route('admin.updates.index') }}" class="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-brand-200 bg-white/90 p-4 no-underline shadow-md hover:no-underline" data-reveal>
+        <span class="flex items-center gap-3 text-ink-900"><span class="stat-ico" style="--c1:#3461ee;--c2:#1038b8"><x-icon name="download" class="size-5" /></span><span><strong>Update available: version {{ $update['version'] }}</strong><span class="block text-sm text-ink-600">You're on {{ config('courier.version') }}. Install it in one click.</span></span></span>
+        <span class="btn btn-primary btn-shine">Review &amp; install</span>
+    </a>
+@endif
 <div class="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
     <x-stat label="Booked today" :value="$ops['booked_today']" icon="calendar" :href="route('ops.shipments.index', ['from' => today()->toDateString()])" />
     <x-stat label="Awaiting pickup" :value="$ops['awaiting_pickup']" icon="package" />

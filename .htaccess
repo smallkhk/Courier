@@ -1,0 +1,11 @@
+# Used only when this folder itself is the website's document root (e.g. public_html on a
+# Namecheap main domain). Every request is served from public/, so .env, storage/ and the
+# application code can never be downloaded. If you can point the domain's document root
+# at the public/ folder instead (cPanel → Domains), that is even better and this file is ignored.
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>
+<IfModule !mod_rewrite.c>
+    Require all denied
+</IfModule>

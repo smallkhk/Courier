@@ -6,6 +6,7 @@ use App\Enums\ShipmentStatus;
 use App\Http\Controllers\Controller;
 use App\Support\Audit;
 use App\Support\ConfigCheck;
+use App\Support\LaunchChecklist;
 use App\Support\Settings;
 use Illuminate\Http\Request;
 
@@ -16,14 +17,20 @@ class SettingsController extends Controller
         return view('admin.settings', [
             'values' => Settings::all(),
             'integrations' => [
-                'Payments' => config('courier.payments.provider').(config('courier.payments.provider') === 'paystack' ? (config('courier.payments.paystack.secret_key') ? ' (key set)' : ' (KEY MISSING)') : ' (sandbox — development only)'),
+                'Payments' => ($p = config('courier.payments.provider')).match ($p) {
+                    'stripe' => config('courier.payments.stripe.secret_key') ? (str_starts_with((string) config('courier.payments.stripe.secret_key'), 'sk_live_') ? ' (live key set)' : ' (test key set)') : ' (KEY MISSING)',
+                    'paystack' => config('courier.payments.paystack.secret_key') ? ' (key set)' : ' (KEY MISSING)',
+                    default => ' (sandbox — development only)',
+                },
                 'Email' => config('mail.default').(config('mail.default') === 'log' ? ' (written to log, not sent)' : ''),
                 'SMS' => config('courier.sms.driver').(config('courier.sms.driver') === 'log' ? ' (written to log, not sent)' : ''),
                 'Map tiles' => parse_url(config('courier.maps.tile_url'), PHP_URL_HOST),
                 'Scheduler (cron)' => cache('scheduler:last_run') ? 'last ran '.cache('scheduler:last_run')->diffForHumans() : 'NOT RUNNING — set up the cPanel cron job',
+                'Version' => config('courier.version'),
                 'Environment' => app()->environment().(config('app.debug') ? ' (debug ON)' : ''),
             ],
             'problems' => ConfigCheck::problems(),
+            'checklist' => LaunchChecklist::items(),
         ]);
     }
 

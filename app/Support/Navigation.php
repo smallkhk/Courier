@@ -89,6 +89,7 @@ class Navigation
                 ['label' => 'Status workflow', 'route' => 'admin.workflow', 'icon' => 'route'],
                 ['label' => 'Audit log', 'route' => 'admin.audit', 'icon' => 'history'],
                 ['label' => 'System settings', 'route' => 'admin.settings', 'icon' => 'settings'],
+                ['label' => 'Software updates', 'route' => 'admin.updates.index', 'icon' => 'download'],
             ]);
         }
 

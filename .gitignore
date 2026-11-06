@@ -25,3 +25,4 @@ Homestead.json
 Homestead.yaml
 Thumbs.db
 # NOTE: public/build IS committed on purpose so cPanel shared hosting never needs Node.js.
+/dist

@@ -8,6 +8,7 @@ use App\Http\Controllers\Business;
 use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\FileController;
 use App\Http\Controllers\HealthController;
+use App\Http\Controllers\InstallController;
 use App\Http\Controllers\Ops;
 use App\Http\Controllers\PublicController;
 use App\Http\Controllers\Rider;
@@ -23,6 +24,10 @@ use Illuminate\Support\Facades\Route;
 */
 Route::get('/', [PublicController::class, 'home'])->name('home');
 Route::get('/services', [PublicController::class, 'services'])->name('services');
+// First-launch installer: 404 once an administrator exists or when INSTALL_TOKEN is unset.
+Route::get('/install', [InstallController::class, 'show'])->name('install');
+Route::post('/install', [InstallController::class, 'store'])->name('install.store');
+
 Route::get('/pricing', [PublicController::class, 'pricing'])->name('pricing');
 Route::post('/pricing', [PublicController::class, 'estimate'])->middleware('throttle:quote')->name('pricing.estimate');
 Route::get('/coverage', [PublicController::class, 'coverage'])->name('coverage');
@@ -255,6 +260,12 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::get('/audit', [Admin\AuditController::class, 'index'])->name('audit');
     Route::get('/settings', [Admin\SettingsController::class, 'edit'])->name('settings');
     Route::put('/settings', [Admin\SettingsController::class, 'update'])->name('settings.update');
+    Route::get('/updates', [Admin\UpdateController::class, 'index'])->name('updates.index');
+    Route::post('/updates/check', [Admin\UpdateController::class, 'check'])->middleware('throttle:10,1')->name('updates.check');
+    Route::post('/updates/install', [Admin\UpdateController::class, 'install'])->middleware('throttle:5,10')->name('updates.install');
+    // Excluded from maintenance mode in bootstrap/app.php so the update can complete.
+    Route::post('/updates/finish', [Admin\UpdateController::class, 'finish'])->name('updates.finish');
+    Route::post('/updates/rollback', [Admin\UpdateController::class, 'rollback'])->middleware('throttle:5,10')->name('updates.rollback');
 
     Route::get('/manage/{resource}', [Admin\ResourceController::class, 'index'])->name('resource.index');
     Route::get('/manage/{resource}/new', [Admin\ResourceController::class, 'create'])->name('resource.create');

@@ -3,6 +3,7 @@
 use App\Http\Middleware\EnsureActiveAccount;
 use App\Http\Middleware\EnsureBusinessMember;
 use App\Http\Middleware\EnsureRole;
+use App\Http\Middleware\RedirectToInstaller;
 use App\Http\Middleware\SecurityHeaders;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -26,11 +27,14 @@ return Application::configure(basePath: dirname(__DIR__))
         if ($proxies = env('TRUSTED_PROXIES')) {
             $middleware->trustProxies(at: $proxies === '*' ? '*' : array_map('trim', explode(',', $proxies)));
         }
+        $middleware->web(prepend: [RedirectToInstaller::class]);
         $middleware->web(append: [
             SecurityHeaders::class,
             EnsureActiveAccount::class,
         ]);
         $middleware->validateCsrfTokens(except: ['api/webhooks/*']);
+        // A one-click update finishes (migrations, cache clear) while the site is in maintenance.
+        $middleware->preventRequestsDuringMaintenance(except: ['admin/updates/finish']);
         $middleware->alias([
             'role' => EnsureRole::class,
             'business' => EnsureBusinessMember::class,
