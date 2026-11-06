@@ -51,6 +51,9 @@ class TrackingTest extends TestCase
         $s = $this->shipment();
         $this->post(route('track.verify', $s->tracking_number), ['phone_last4' => '0000'])->assertSessionHasErrors('phone_last4');
         $this->post(route('track.verify', $s->tracking_number), ['phone_last4' => '0148'])->assertRedirect();
+        // The sender may verify with their own number too.
+        $this->flushSession();
+        $this->post(route('track.verify', $s->tracking_number), ['phone_last4' => '0147'])->assertSessionHasNoErrors();
         $this->get(route('track.show', $s->tracking_number))->assertSee('Bola Recipient');
     }
 

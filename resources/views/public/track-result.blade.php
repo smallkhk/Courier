@@ -66,7 +66,7 @@
                 <form method="post" action="{{ route('track.verify', $shipment->tracking_number) }}" class="card card-body space-y-3">
                     @csrf
                     <h2 class="flex items-center gap-2 text-base"><x-icon name="lock" class="size-4" />See more details</h2>
-                    <p class="text-sm text-ink-600">Recipient? Enter the last 4 digits of the recipient's phone number.</p>
+                    <p class="text-sm text-ink-600">Sender or recipient? Enter the last 4 digits of your phone number to see the full delivery details.</p>
                     <x-field name="phone_last4" label="Last 4 digits" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" autocomplete="off" required />
                     <button class="btn btn-secondary w-full" type="submit">Verify</button>
                 </form>

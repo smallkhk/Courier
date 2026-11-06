@@ -50,8 +50,12 @@ class TrackingController extends Controller
     {
         $request->validate(['phone_last4' => 'required|digits:4']);
         $shipment = Shipment::where('tracking_number', TrackingNumber::normalize($tracking))->firstOrFail();
-        $digits = preg_replace('/\D/', '', $shipment->recipient_phone);
-        if (! hash_equals(substr($digits, -4), (string) $request->input('phone_last4'))) {
+        // The sender or the recipient may unlock the full details with the last 4 digits of their phone.
+        $given = (string) $request->input('phone_last4');
+        $matches = collect([$shipment->recipient_phone, $shipment->sender_phone])
+            ->map(fn ($p) => substr((string) preg_replace('/\D/', '', (string) $p), -4))
+            ->filter(fn ($last4) => strlen($last4) === 4 && hash_equals($last4, $given));
+        if ($matches->isEmpty()) {
             return back()->withErrors(['phone_last4' => 'Those digits do not match our records.']);
         }
         $ids = $request->session()->get('tracking_verified', []);
