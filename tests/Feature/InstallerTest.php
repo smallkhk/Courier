@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Support\Installer;
 use App\Support\Settings;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class InstallerTest extends TestCase
@@ -63,6 +64,16 @@ class InstallerTest extends TestCase
         $this->get('/install')->assertNotFound();
         $this->post('/install', $this->form(['email' => 'second@ship.example.com']))->assertNotFound();
         $this->get('/')->assertOk();
+    }
+
+    public function test_half_finished_earlier_attempt_needs_explicit_start_fresh(): void
+    {
+        // Simulate an earlier attempt that stopped half-way: tables exist, a migration did not finish.
+        DB::table('migrations')->where('migration', 'like', '%create_app_updates_table')->delete();
+        $this->assertNotEmpty(Installer::existingTables());
+        $this->get('/install')->assertOk()->assertSee('Remove them and start fresh');
+        $this->post('/install', $this->form())->assertSessionHas('error');
+        $this->assertSame(0, User::count());
     }
 
     public function test_installer_is_off_without_a_token_or_once_an_admin_exists(): void

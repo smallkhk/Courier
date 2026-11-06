@@ -25,7 +25,7 @@ class InstallController extends Controller
     {
         abort_unless(Installer::enabled(), 404);
 
-        return view('install.index', ['requirements' => Installer::requirements()]);
+        return view('install.index', ['requirements' => Installer::requirements(), 'leftovers' => Installer::existingTables()]);
     }
 
     public function store(Request $request)
@@ -52,8 +52,18 @@ class InstallController extends Controller
             return back()->withInput($request->except('password', 'password_confirmation', 'install_token'))->with('error', 'Fix the items marked in red first.');
         }
 
+        $leftovers = Installer::existingTables();
+        if ($leftovers && ! $request->boolean('start_fresh')) {
+            return back()->withInput($request->except('password', 'password_confirmation', 'install_token'))
+                ->with('error', 'This database already contains tables. Tick "Remove them and start fresh" to continue.');
+        }
+
         @set_time_limit(300);
         try {
+            if ($leftovers) {
+                // Only reachable before any administrator exists, after the owner ticked the box.
+                Artisan::call('db:wipe', ['--force' => true]);
+            }
             Artisan::call('migrate', ['--force' => true]);
             Artisan::call('db:seed', ['--class' => 'Database\\Seeders\\EssentialSeeder', '--force' => true]);
         } catch (Throwable $e) {

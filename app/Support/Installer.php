@@ -32,6 +32,26 @@ class Installer
         return strlen((string) config('courier.install_token')) >= 20 && ! self::installed();
     }
 
+    /**
+     * Tables left by an earlier attempt that stopped half-way: the database has tables but
+     * not every migration has run. A complete schema (or an empty database) returns [].
+     */
+    public static function existingTables(): array
+    {
+        try {
+            $tables = array_values(array_filter(array_map(fn ($t) => is_array($t) ? ($t['name'] ?? '') : (string) $t, DB::getSchemaBuilder()->getTableListing(DB::connection()->getDatabaseName(), false))));
+            if (array_diff($tables, ['migrations']) === []) {
+                return [];
+            }
+            $ran = in_array('migrations', $tables, true) ? DB::table('migrations')->pluck('migration')->all() : [];
+            $files = array_map(fn ($f) => basename($f, '.php'), glob(database_path('migrations/*.php')) ?: []);
+
+            return array_diff($files, $ran) === [] ? [] : $tables;
+        } catch (Throwable) {
+            return [];
+        }
+    }
+
     /** @return list<array{0:string, 1:bool, 2:string}> [check, passed, how to fix] */
     public static function requirements(): array
     {

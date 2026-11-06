@@ -43,6 +43,13 @@
             <x-field name="email" label="Your email (admin sign-in)" type="email" required autocomplete="email" />
             <x-field name="password" label="Password" type="password" required hint="At least 12 characters, letters and numbers." autocomplete="new-password" />
             <x-field name="password_confirmation" label="Confirm password" type="password" required autocomplete="new-password" />
+            @if($leftovers)
+                <div class="rounded-lg border border-warning-200 bg-warning-50 p-4 text-sm text-warning-800 sm:col-span-2">
+                    <p class="font-semibold">This database already has {{ count($leftovers) }} {{ Str::plural('table', count($leftovers)) }} in it</p>
+                    <p class="mt-1">Usually left over from an earlier install attempt that stopped half-way. Make sure this database is only used for ExpressShipping, then:</p>
+                    <label class="mt-3 flex items-start gap-2 font-medium text-ink-900"><input type="checkbox" name="start_fresh" value="1" class="checkbox mt-0.5" required> Remove them and start fresh</label>
+                </div>
+            @endif
         </div>
         <div class="flex flex-wrap items-center justify-between gap-3 border-t border-ink-200 px-4 py-4 sm:px-6">
             <p class="text-xs text-ink-500">No demo or sample data is created.</p>

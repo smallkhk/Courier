@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 
@@ -33,6 +34,9 @@ class AppServiceProvider extends ServiceProvider
         }
 
         Paginator::defaultView('pagination::tailwind');
+        // Keeps every index within the limits of older MySQL/MariaDB setups (some shared
+        // hosts default to MyISAM, max key 1000 bytes; utf8mb4 uses 4 bytes per character).
+        Schema::defaultStringLength(191);
 
         RateLimiter::for('login', fn (Request $r) => [
             Limit::perMinute(5)->by(strtolower((string) $r->input('email')).'|'.$r->ip()),
